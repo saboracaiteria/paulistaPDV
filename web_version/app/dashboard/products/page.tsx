@@ -385,7 +385,7 @@ export default function ProductsPage() {
                 {/* Pagination Footer */}
                 <div className="flex items-center justify-between py-4 px-6 border-t">
                     <div className="text-xs text-muted-foreground">
-                        Mostrando {startIndex + 1} a {Math.min(endIndex, filteredProducts.length)} de {filteredProducts.length} produtos
+                        Mostrando {startIndex + 1} a {Math.min(endIndex, totalProducts)} de {totalProducts} produtos
                     </div>
                     <div className="flex items-center gap-2">
                         <Button

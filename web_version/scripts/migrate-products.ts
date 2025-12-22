@@ -2,8 +2,21 @@ import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import path from 'path';
 
-// Load .env.local
-dotenv.config({ path: path.resolve(__dirname, '../.env.local') });
+import fs from 'fs';
+
+// Load .env.local manually to ensure it works
+console.log('Current working directory:', process.cwd());
+const envPath = path.resolve(process.cwd(), '.env.local');
+
+try {
+    const envConfig = dotenv.parse(fs.readFileSync(envPath));
+    for (const k in envConfig) {
+        process.env[k] = envConfig[k];
+    }
+    console.log(`Loaded ${Object.keys(envConfig).length} environment variables from .env.local`);
+} catch (e) {
+    console.error('Error loading .env.local:', e);
+}
 
 import { PRODUCTS_DATA } from '../lib/products-data';
 
