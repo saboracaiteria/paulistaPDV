@@ -435,10 +435,42 @@ export default function SalesPage() {
         setIsCheckoutOpen(false);
     };
 
-    const handlePrint = () => {
-        window.print(); // Simple print for now. A real app would open a print window with specific CSS.
+    const handlePrint = async () => {
+        // Save sale to Supabase
+        try {
+            const saleData = {
+                customer_name: clientName || "Consumidor Final",
+                customer_phone: whatsappNumber || null,
+                payment_method: selectedPayment,
+                payment_condition: paymentCondition,
+                subtotal: subTotal,
+                discount: globalDiscount.value,
+                total: getFinalTotal(),
+                items: cart.map(item => ({
+                    id: item.id,
+                    name: item.name,
+                    quantity: item.quantity,
+                    price: item.price,
+                    discount: item.discount,
+                    discountType: item.discountType
+                }))
+            };
+
+            const { error } = await supabase.from('sales').insert(saleData);
+
+            if (error) {
+                console.error("Error saving sale:", error);
+                alert("Erro ao salvar venda: " + error.message);
+            }
+        } catch (err) {
+            console.error("Error:", err);
+        }
+
+        window.print();
         setIsCheckoutOpen(false);
-        setCart([]); // Clear cart after "sale"
+        setCart([]);
+        setClientName("");
+        setWhatsappNumber("");
     };
 
     const handleBudget = () => {
@@ -740,8 +772,8 @@ export default function SalesPage() {
                                 }}
                                 disabled={!pendingProduct && !selectedProductId}
                                 className={`lg:hidden flex items-center justify-center w-12 h-10 rounded-lg font-bold text-white shadow-lg transition-all self-end ${pendingProduct || selectedProductId
-                                        ? 'bg-green-600 hover:bg-green-700 active:scale-95'
-                                        : 'bg-slate-300 cursor-not-allowed'
+                                    ? 'bg-green-600 hover:bg-green-700 active:scale-95'
+                                    : 'bg-slate-300 cursor-not-allowed'
                                     }`}
                             >
                                 <Plus className="h-6 w-6" />
