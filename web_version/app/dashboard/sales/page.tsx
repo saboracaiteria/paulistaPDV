@@ -183,8 +183,20 @@ export default function SalesPage() {
                 return;
             }
 
-            if (document.activeElement?.tagName === "INPUT" && document.activeElement.getAttribute("name") === "search") {
-                if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") return;
+            // If in any input field (except search for product selection), let local handlers work
+            const activeElement = document.activeElement;
+            const isInInput = activeElement?.tagName === "INPUT";
+            const isSearchInput = activeElement?.getAttribute("name") === "search";
+
+            // For non-search inputs, only allow keyboard navigation, not Enter (local handlers will handle it)
+            if (isInInput && !isSearchInput) {
+                // Let local onKeyDown handlers work for these inputs
+                return;
+            }
+
+            // For search input, allow arrows and Enter for product selection
+            if (isSearchInput && e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Enter") {
+                return;
             }
 
             const currentIndex = filteredProducts.findIndex(p => p.id === selectedProductId);
