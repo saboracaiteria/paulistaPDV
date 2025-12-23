@@ -9,7 +9,9 @@ import {
     Calendar,
     Download,
     Plus,
-    Filter
+    Filter,
+    Loader2,
+    Trash2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -31,21 +33,33 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/lib/supabase";
 
-// Mock Data with proper dates for grouping
-const INITIAL_TRANSACTIONS = [
-    { id: 1, desc: "Venda #10023", type: "income", date: "Hoje", time: "14:30", amount: 156.00, method: "PIX" },
-    { id: 2, desc: "Fornecedor ABC Ltda", type: "expense", date: "Hoje", time: "10:00", amount: 450.00, method: "Boleto" },
-    { id: 3, desc: "Venda #10022", type: "income", date: "Ontem", time: "18:45", amount: 89.90, method: "Cartão de Crédito" },
-    { id: 4, desc: "Conta de Luz", type: "expense", date: "Ontem", time: "09:00", amount: 230.50, method: "Débito Automático" },
-    { id: 5, desc: "Venda #10021", type: "income", date: "15/12/2025", time: "15:30", amount: 345.00, method: "Dinheiro" },
-    { id: 6, desc: "Fornecedor XYZ", type: "expense", date: "15/12/2025", time: "11:00", amount: 180.00, method: "PIX" },
-    { id: 7, desc: "Venda #10020", type: "income", date: "14/12/2025", time: "16:00", amount: 220.00, method: "Cartão de Débito" },
-];
+interface Transaction {
+    id: number;
+    description: string;
+    type: "income" | "expense";
+    amount: number;
+    method: string;
+    date: string;
+    time: string;
+}
+
+// Helper function to format date for display
+const formatDateForDisplay = (dateStr: string): string => {
+    const today = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+
+    if (dateStr === today) return "Hoje";
+    if (dateStr === yesterday) return "Ontem";
+    return new Date(dateStr + "T12:00:00").toLocaleDateString("pt-BR");
+};
 
 export default function FinancePage() {
-    const [transactions, setTransactions] = useState(INITIAL_TRANSACTIONS);
+    const [transactions, setTransactions] = useState<Transaction[]>([]);
+    const [loading, setLoading] = useState(true);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
     const [newTransaction, setNewTransaction] = useState({
         desc: "",
@@ -59,6 +73,35 @@ export default function FinancePage() {
     const amountRef = useRef<HTMLInputElement>(null);
     const methodRef = useRef<HTMLSelectElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
+
+    // Fetch transactions from Supabase
+    const fetchTransactions = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from("transactions")
+            .select("*")
+            .order("date", { ascending: false })
+            .order("time", { ascending: false });
+
+        if (data && !error) {
+            setTransactions(data.map(t => ({
+                id: t.id,
+                description: t.description,
+                type: t.type as "income" | "expense",
+                amount: Number(t.amount),
+                method: t.method || "",
+                date: t.date,
+                time: t.time || ""
+            })));
+        } else if (error) {
+            console.error("Error fetching transactions:", error);
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchTransactions();
+    }, []);
 
     // Auto-focus logic
     useEffect(() => {
@@ -79,19 +122,39 @@ export default function FinancePage() {
         }
     };
 
-    const handleAddTransaction = () => {
-        const transaction = {
-            id: transactions.length + 1,
-            desc: newTransaction.desc,
+    const handleAddTransaction = async () => {
+        setSaving(true);
+        const today = new Date();
+        const payload = {
+            description: newTransaction.desc,
             type: newTransaction.type,
-            date: "Hoje",
-            time: new Date().toLocaleTimeString().slice(0, 5),
             amount: Number(newTransaction.amount),
-            method: newTransaction.method
+            method: newTransaction.method,
+            date: today.toISOString().slice(0, 10),
+            time: today.toTimeString().slice(0, 5)
         };
-        setTransactions([transaction, ...transactions]);
-        setIsDialogOpen(false);
-        setNewTransaction({ desc: "", amount: "", type: "income", method: "Dinheiro" });
+
+        const { error } = await supabase.from("transactions").insert(payload);
+
+        setSaving(false);
+        if (error) {
+            alert("Erro ao salvar transação: " + error.message);
+        } else {
+            setIsDialogOpen(false);
+            setNewTransaction({ desc: "", amount: "", type: "income", method: "Dinheiro" });
+            fetchTransactions();
+        }
+    };
+
+    const handleDelete = async (id: number) => {
+        if (confirm("Tem certeza que deseja excluir esta transação?")) {
+            const { error } = await supabase.from("transactions").delete().eq("id", id);
+            if (error) {
+                alert("Erro ao excluir: " + error.message);
+            } else {
+                fetchTransactions();
+            }
+        }
     };
 
     // Filter transactions
@@ -104,8 +167,9 @@ export default function FinancePage() {
     const groupedTransactions = useMemo(() => {
         const groups: { [date: string]: typeof transactions } = {};
         filteredTransactions.forEach(t => {
-            if (!groups[t.date]) groups[t.date] = [];
-            groups[t.date].push(t);
+            const displayDate = formatDateForDisplay(t.date);
+            if (!groups[displayDate]) groups[displayDate] = [];
+            groups[displayDate].push(t);
         });
         return groups;
     }, [filteredTransactions]);
@@ -271,7 +335,7 @@ export default function FinancePage() {
                                                     {item.type === 'income' ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
                                                 </div>
                                                 <div className="min-w-0 flex-1">
-                                                    <p className="text-sm font-medium leading-none truncate">{item.desc}</p>
+                                                    <p className="text-sm font-medium leading-none truncate">{item.description}</p>
                                                     <p className="text-xs text-muted-foreground mt-0.5">
                                                         {item.time} • {item.method}
                                                     </p>

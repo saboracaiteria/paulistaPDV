@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Plus, Search, Filter, Edit, Trash2, Mail, Phone, MapPin, Download, Upload } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Plus, Search, Filter, Edit, Trash2, Mail, Phone, MapPin, Download, Upload, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -15,19 +15,24 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { parseImportFile, Customer } from "@/lib/universal-parser";
 import { ImportReviewDialog } from "@/components/import-review-dialog";
+import { supabase } from "@/lib/supabase";
 
-// Mock data for initial clients
-const INITIAL_CLIENTS = [
-    { id: 1, name: "João Silva", email: "joao@email.com", phone: "(11) 99999-9999", address: "Rua A, 123", city: "São Paulo" },
-    { id: 2, name: "Maria Oliveira", email: "maria@email.com", phone: "(11) 88888-8888", address: "Av B, 456", city: "Campinas" },
-    { id: 3, name: "Carlos Santos", email: "carlos@email.com", phone: "(11) 77777-7777", address: "Rua C, 789", city: "Santos" },
-];
+interface ClientData {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    address: string;
+    city: string;
+}
 
 export default function CustomersPage() {
-    const [clients, setClients] = useState(INITIAL_CLIENTS);
+    const [clients, setClients] = useState<ClientData[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [currentClient, setCurrentClient] = useState<any>(null);
+    const [currentClient, setCurrentClient] = useState<ClientData | null>(null);
+    const [saving, setSaving] = useState(false);
 
     // Import Review State
     const [reviewOpen, setReviewOpen] = useState(false);
@@ -44,6 +49,26 @@ export default function CustomersPage() {
         city: ""
     });
 
+    // Fetch clients from Supabase
+    const fetchClients = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from("customers")
+            .select("*")
+            .order("name");
+
+        if (data && !error) {
+            setClients(data as ClientData[]);
+        } else if (error) {
+            console.error("Error fetching customers:", error);
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchClients();
+    }, []);
+
     // Smart search - supports multiple words (e.g., "JO SIL" finds "João Silva")
     const filteredClients = clients.filter(client => {
         if (!searchTerm.trim()) return true;
@@ -55,10 +80,16 @@ export default function CustomersPage() {
         return words.every(word => searchableText.includes(word.toLowerCase()));
     });
 
-    const handleOpenDialog = (client?: any) => {
+    const handleOpenDialog = (client?: ClientData) => {
         if (client) {
             setCurrentClient(client);
-            setFormData(client);
+            setFormData({
+                name: client.name,
+                email: client.email || "",
+                phone: client.phone || "",
+                address: client.address || "",
+                city: client.city || ""
+            });
         } else {
             setCurrentClient(null);
             setFormData({
@@ -72,20 +103,47 @@ export default function CustomersPage() {
         setIsDialogOpen(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        setSaving(true);
+        const payload = {
+            name: formData.name,
+            email: formData.email || null,
+            phone: formData.phone || null,
+            address: formData.address || null,
+            city: formData.city || null
+        };
+
+        let error;
         if (currentClient) {
-            // Edit
-            setClients(clients.map(c => c.id === currentClient.id ? { ...formData, id: c.id } : c));
+            // Update
+            const result = await supabase
+                .from("customers")
+                .update(payload)
+                .eq("id", currentClient.id);
+            error = result.error;
         } else {
-            // Create
-            setClients([...clients, { ...formData, id: clients.length + 1 }]);
+            // Insert
+            const result = await supabase.from("customers").insert(payload);
+            error = result.error;
         }
-        setIsDialogOpen(false);
+
+        setSaving(false);
+        if (error) {
+            alert("Erro ao salvar cliente: " + error.message);
+        } else {
+            setIsDialogOpen(false);
+            fetchClients();
+        }
     };
 
-    const handleDelete = (id: number) => {
+    const handleDelete = async (id: number) => {
         if (confirm("Tem certeza que deseja excluir este cliente?")) {
-            setClients(clients.filter(c => c.id !== id));
+            const { error } = await supabase.from("customers").delete().eq("id", id);
+            if (error) {
+                alert("Erro ao excluir: " + error.message);
+            } else {
+                fetchClients();
+            }
         }
     };
 
@@ -146,23 +204,42 @@ export default function CustomersPage() {
         event.target.value = '';
     };
 
-    const confirmImport = () => {
-        setClients(prevClients => {
-            const newClients = [...prevClients];
-            // Apply updates
-            importSummary.updatedItems.forEach(update => {
-                const index = newClients.findIndex(c => c.id === update.id);
-                if (index >= 0) newClients[index] = update;
-            });
-            // Apply additions
-            let maxId = Math.max(...newClients.map(c => c.id || 0), 0);
-            importSummary.newItems.forEach(item => {
-                maxId++;
-                newClients.push({ ...item, id: maxId });
-            });
-            return newClients;
-        });
+    const confirmImport = async () => {
+        // Insert new items
+        if (importSummary.newItems.length > 0) {
+            const newPayload = importSummary.newItems.map(item => ({
+                name: item.name,
+                email: item.email || null,
+                phone: item.phone || null,
+                address: item.address || null,
+                city: item.city || null
+            }));
+            const { error } = await supabase.from("customers").insert(newPayload);
+            if (error) {
+                alert("Erro ao inserir clientes: " + error.message);
+                return;
+            }
+        }
+
+        // Update existing items
+        for (const update of importSummary.updatedItems) {
+            const { error } = await supabase
+                .from("customers")
+                .update({
+                    name: update.name,
+                    email: update.email || null,
+                    phone: update.phone || null,
+                    address: update.address || null,
+                    city: update.city || null
+                })
+                .eq("id", update.id);
+            if (error) {
+                console.error("Erro ao atualizar cliente:", error);
+            }
+        }
+
         setReviewOpen(false);
+        fetchClients();
         alert("Importação de Clientes concluída!");
     };
 

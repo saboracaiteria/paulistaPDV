@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Plus, Search, Filter, Edit, Trash2, Calendar, DollarSign, Upload, CheckCircle, AlertCircle, Clock, CheckSquare, Square, Printer, FileText } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Plus, Search, Filter, Edit, Trash2, Calendar, DollarSign, Upload, CheckCircle, AlertCircle, Clock, CheckSquare, Square, Printer, FileText, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -18,17 +18,28 @@ import { ImportReviewDialog } from "@/components/import-review-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SettlementDialog } from "@/components/settlement-dialog";
+import { supabase } from "@/lib/supabase";
 
-const INITIAL_RECEIVABLES: Receivable[] = [
-    { id: 1, description: "Venda #10050", customer: "João Silva", value: 150.00, dueDate: "20/12/2025", status: "Pendente" },
-    { id: 2, description: "Parcela 2/3 - Pedido #900", customer: "Maria Oliveira", value: 300.00, dueDate: "15/12/2025", status: "Atrasado" }, // Late relative to "today" if older
-    { id: 3, description: "Serviço Prestado", customer: "Empresa X", value: 1200.00, dueDate: "25/12/2025", status: "Recebido", paymentDate: "20/12/2025", paymentMethod: "Pix" },
-];
+interface ReceivableData {
+    id: number;
+    description: string;
+    customer: string;
+    value: number;
+    due_date: string;
+    status: "Pendente" | "Recebido" | "Atrasado";
+    original_value?: number;
+    discount?: number;
+    addition?: number;
+    payment_date?: string;
+    payment_method?: string;
+}
 
 export default function ReceivablesPage() {
-    const [receivables, setReceivables] = useState<Receivable[]>(INITIAL_RECEIVABLES);
+    const [receivables, setReceivables] = useState<Receivable[]>([]);
+    const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
     const [onlyOverdue, setOnlyOverdue] = useState(false);
+    const [saving, setSaving] = useState(false);
 
     // Selection state
     const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -52,14 +63,44 @@ export default function ReceivablesPage() {
         status: "Pendente"
     });
 
+    // Fetch receivables from Supabase
+    const fetchReceivables = async () => {
+        setLoading(true);
+        const { data, error } = await supabase
+            .from("receivables")
+            .select("*")
+            .order("due_date", { ascending: true });
+
+        if (data && !error) {
+            setReceivables(data.map(r => ({
+                id: r.id,
+                description: r.description,
+                customer: r.customer || "",
+                value: Number(r.value),
+                dueDate: r.due_date ? new Date(r.due_date + "T12:00:00").toLocaleDateString("pt-BR") : "",
+                status: r.status as "Pendente" | "Recebido" | "Atrasado",
+                originalValue: r.original_value ? Number(r.original_value) : undefined,
+                discount: r.discount ? Number(r.discount) : undefined,
+                addition: r.addition ? Number(r.addition) : undefined,
+                paymentDate: r.payment_date ? new Date(r.payment_date + "T12:00:00").toLocaleDateString("pt-BR") : undefined,
+                paymentMethod: r.payment_method || undefined
+            })));
+        } else if (error) {
+            console.error("Error fetching receivables:", error);
+        }
+        setLoading(false);
+    };
+
+    useEffect(() => {
+        fetchReceivables();
+    }, []);
+
     // --- Search Helper ---
-    // Ignores spaces and case, e.g. "jo aosilva" matches "João Silva"
     const normalizeString = (str: string) => {
         return str.toLowerCase().replace(/\s+/g, "").normalize("NFD").replace(/[\u0300-\u036f]/g, "");
     };
 
     const isOverdue = (dateStr: string) => {
-        // Simple string comparison for DD/MM/YYYY is risky without parsing, but let's try strict parse
         if (!dateStr) return false;
         const parts = dateStr.split('/');
         if (parts.length !== 3) return false;
@@ -67,6 +108,16 @@ export default function ReceivablesPage() {
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         return date < today;
+    };
+
+    // Helper to convert DD/MM/YYYY to YYYY-MM-DD for database
+    const parseDateToISO = (dateStr: string): string | null => {
+        if (!dateStr) return null;
+        const parts = dateStr.split('/');
+        if (parts.length === 3) {
+            return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+        }
+        return dateStr; // Already ISO maybe
     };
 
     const filteredReceivables = receivables.filter(r => {
@@ -118,20 +169,46 @@ export default function ReceivablesPage() {
         setIsDialogOpen(true);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
+        setSaving(true);
+        const payload = {
+            description: formData.description,
+            customer: formData.customer || null,
+            value: Number(formData.value),
+            due_date: parseDateToISO(formData.dueDate || ""),
+            status: formData.status || "Pendente"
+        };
+
+        let error;
         if (currentReceivable) {
-            setReceivables(receivables.map(r => r.id === currentReceivable.id ? { ...formData, id: r.id } as Receivable : r));
+            const result = await supabase
+                .from("receivables")
+                .update(payload)
+                .eq("id", currentReceivable.id);
+            error = result.error;
         } else {
-            const newId = Math.max(...receivables.map(r => r.id), 0) + 1;
-            setReceivables([...receivables, { ...formData, id: newId } as Receivable]);
+            const result = await supabase.from("receivables").insert(payload);
+            error = result.error;
         }
-        setIsDialogOpen(false);
+
+        setSaving(false);
+        if (error) {
+            alert("Erro ao salvar: " + error.message);
+        } else {
+            setIsDialogOpen(false);
+            fetchReceivables();
+        }
     };
 
-    const handleDelete = (id: number) => {
+    const handleDelete = async (id: number) => {
         if (confirm("Tem certeza que deseja excluir esta conta?")) {
-            setReceivables(receivables.filter(r => r.id !== id));
-            setSelectedIds(prev => prev.filter(sid => sid !== id));
+            const { error } = await supabase.from("receivables").delete().eq("id", id);
+            if (error) {
+                alert("Erro ao excluir: " + error.message);
+            } else {
+                setSelectedIds(prev => prev.filter(sid => sid !== id));
+                fetchReceivables();
+            }
         }
     };
 
@@ -159,28 +236,47 @@ export default function ReceivablesPage() {
         event.target.value = '';
     };
 
-    const confirmImport = () => {
-        setReceivables(prev => {
-            const newItems = [...prev];
-            let maxId = Math.max(...newItems.map(i => i.id), 0);
-            importSummary.newItems.forEach(item => {
-                maxId++;
-                newItems.push({ ...item, id: maxId });
-            });
-            return newItems;
-        });
+    const confirmImport = async () => {
+        if (importSummary.newItems.length > 0) {
+            const payload = importSummary.newItems.map(item => ({
+                description: item.description,
+                customer: item.customer || null,
+                value: Number(item.value),
+                due_date: parseDateToISO(item.dueDate || ""),
+                status: item.status || "Pendente"
+            }));
+            const { error } = await supabase.from("receivables").insert(payload);
+            if (error) {
+                alert("Erro ao importar: " + error.message);
+                return;
+            }
+        }
         setReviewOpen(false);
+        fetchReceivables();
         alert("Importação concluída!");
     };
 
     // --- Settlement Logic ---
-    const handleSettlementConfirm = (settledItems: Receivable[]) => {
-        setReceivables(prev => prev.map(item => {
-            const settled = settledItems.find(s => s.id === item.id);
-            return settled ? settled : item;
-        }));
+    const handleSettlementConfirm = async (settledItems: Receivable[]) => {
+        for (const item of settledItems) {
+            const { error } = await supabase
+                .from("receivables")
+                .update({
+                    status: "Recebido",
+                    payment_date: parseDateToISO(item.paymentDate || new Date().toLocaleDateString("pt-BR")),
+                    payment_method: item.paymentMethod || null,
+                    original_value: item.originalValue || null,
+                    discount: item.discount || null,
+                    addition: item.addition || null
+                })
+                .eq("id", item.id);
+            if (error) {
+                console.error("Erro ao dar baixa:", error);
+            }
+        }
         setSettlementOpen(false);
         setSelectedIds([]);
+        fetchReceivables();
         alert("Baixa realizada com sucesso!");
     };
 
