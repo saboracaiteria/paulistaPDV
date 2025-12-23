@@ -1,4 +1,3 @@
-import * as pdfjsLib from 'pdfjs-dist';
 import { Product } from './products-data';
 
 export interface Customer {
@@ -34,10 +33,15 @@ export interface Receivable {
     paymentMethod?: string;
 }
 
-// Configure worker - using local file for offline support
-pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+// Dynamic import to avoid SSR issues with DOMMatrix
+async function getPdfjsLib() {
+    const pdfjsLib = await import('pdfjs-dist');
+    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
+    return pdfjsLib;
+}
 
 export async function parseProductPdf(file: File): Promise<Product[]> {
+    const pdfjsLib = await getPdfjsLib();
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const products: Product[] = [];
@@ -218,6 +222,7 @@ export async function parseReceivablePdf(file: File): Promise<Receivable[]> {
 
 // Generic helper to avoid code duplication
 async function parseGenericPdf<T>(file: File, parser: (text: string, id: number) => T | null): Promise<T[]> {
+    const pdfjsLib = await getPdfjsLib();
     const arrayBuffer = await file.arrayBuffer();
     const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
     const items: T[] = [];

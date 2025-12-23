@@ -10,6 +10,8 @@
     "migrate-products": "npx tsx scripts/migrate-products.ts"
   },
   "dependencies": {
+    "@radix-ui/react-switch": "^1.2.6",
+    "@radix-ui/react-tabs": "^1.1.13",
     "@supabase/supabase-js": "^2.89.0",
     "@types/papaparse": "^5.5.2",
     "clsx": "^2.1.1",
