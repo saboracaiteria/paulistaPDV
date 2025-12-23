@@ -66,6 +66,12 @@ export default function SalesPage() {
 
     const [globalDiscount, setGlobalDiscount] = useState({ value: 0, type: "value" as "value" | "percent" });
 
+    // Quick entry fields at top (like ERP Enterprise)
+    const [quickQuantity, setQuickQuantity] = useState(1);
+    const [quickDiscount, setQuickDiscount] = useState(0);
+    const [quickDiscountType, setQuickDiscountType] = useState<"value" | "percent">("percent");
+    const [quickPrice, setQuickPrice] = useState<number | null>(null); // null = use product price
+
     const listRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -74,6 +80,11 @@ export default function SalesPage() {
     const editQuantityRef = useRef<HTMLInputElement>(null);
     const editDiscountRef = useRef<HTMLInputElement>(null);
     const editConfirmRef = useRef<HTMLButtonElement>(null);
+
+    // Refs for Quick Entry
+    const quickQuantityRef = useRef<HTMLInputElement>(null);
+    const quickDiscountRef = useRef<HTMLInputElement>(null);
+    const quickPriceRef = useRef<HTMLInputElement>(null);
 
     // Refs for Checkout Modal Navigation
     const checkoutClientRef = useRef<HTMLInputElement>(null);
@@ -162,9 +173,11 @@ export default function SalesPage() {
                 }
             } else if (e.key === "Enter") {
                 e.preventDefault();
-                // Ensure we use the current filtered list logic to find the product
                 const product = filteredProducts.find(p => p.id === selectedProductId);
-                if (product) openEditModal(product);
+                if (product) {
+                    // Quick add with values from top fields
+                    quickAddToCart(product);
+                }
             }
         };
 
@@ -216,6 +229,38 @@ export default function SalesPage() {
             });
         }
         setIsEditModalOpen(true);
+    };
+
+    // Quick add to cart using top fields
+    const quickAddToCart = (product: Product) => {
+        const finalPrice = quickPrice !== null ? quickPrice : product.price;
+        const existingIndex = cart.findIndex(item => item.id === product.id);
+
+        if (existingIndex >= 0) {
+            // Update existing item
+            setCart(cart.map((item, i) =>
+                i === existingIndex
+                    ? { ...item, quantity: item.quantity + quickQuantity }
+                    : item
+            ));
+        } else {
+            // Add new item
+            const newItem: CartItem = {
+                ...product,
+                price: finalPrice,
+                originalPrice: product.price,
+                quantity: quickQuantity,
+                discount: quickDiscount,
+                discountType: quickDiscountType
+            };
+            setCart([...cart, newItem]);
+        }
+
+        // Reset quick fields
+        setQuickQuantity(1);
+        setQuickDiscount(0);
+        setQuickPrice(null);
+        searchInputRef.current?.focus();
     };
 
     const handleSaveItem = () => {
@@ -539,20 +584,71 @@ export default function SalesPage() {
                     <Search className="h-5 w-5" />
                     <h2 className="font-bold text-lg">Busca Avançada (F2)</h2>
                 </div>
-                <div className="bg-slate-100 p-3 rounded-lg text-slate-800 flex flex-col gap-3">
-                    <div className="flex gap-4 items-center">
+                <div className="bg-slate-100 p-3 rounded-lg text-slate-800">
+                    <div className="flex flex-col lg:flex-row gap-3">
+                        {/* Search Field */}
                         <div className="relative flex-1">
+                            <label className="text-xs font-semibold text-slate-500 uppercase mb-1 block">Dados para Buscar</label>
                             <input
                                 ref={searchInputRef}
                                 name="search"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full border border-slate-400 rounded px-2 py-1 h-10 text-xl uppercase focus:ring-2 focus:ring-cyan-500 outline-none font-bold text-slate-700"
+                                className="w-full border border-slate-400 rounded px-2 py-1 h-10 text-xl uppercase focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none font-bold text-slate-700"
                                 autoFocus
                                 placeholder="DIGITE O NOME OU CÓDIGO..."
                                 autoComplete="off"
                             />
-                            <Search className="absolute right-3 top-2.5 h-6 w-6 text-slate-400" />
+                            <Search className="absolute right-3 bottom-2 h-6 w-6 text-slate-400" />
+                        </div>
+
+                        {/* Quick Entry Fields */}
+                        <div className="flex gap-2 lg:gap-3 items-end">
+                            <div className="w-20 lg:w-24">
+                                <label className="text-xs font-semibold text-slate-500 uppercase mb-1 block">Quantidade</label>
+                                <input
+                                    ref={quickQuantityRef}
+                                    type="number"
+                                    min="1"
+                                    value={quickQuantity}
+                                    onChange={(e) => setQuickQuantity(Math.max(1, Number(e.target.value)))}
+                                    className="w-full border-2 border-cyan-500 bg-cyan-50 rounded px-2 py-1 h-10 text-xl text-center font-bold text-cyan-700 focus:ring-2 focus:ring-cyan-500 outline-none"
+                                />
+                            </div>
+                            <div className="w-24 lg:w-28">
+                                <label className="text-xs font-semibold text-slate-500 uppercase mb-1 block">Desconto</label>
+                                <div className="flex">
+                                    <input
+                                        ref={quickDiscountRef}
+                                        type="number"
+                                        min="0"
+                                        value={quickDiscount}
+                                        onChange={(e) => setQuickDiscount(Number(e.target.value))}
+                                        className="w-full border-2 border-amber-500 bg-amber-50 rounded-l px-2 py-1 h-10 text-lg text-center font-bold text-amber-700 focus:ring-2 focus:ring-amber-500 outline-none"
+                                    />
+                                    <select
+                                        value={quickDiscountType}
+                                        onChange={(e) => setQuickDiscountType(e.target.value as "value" | "percent")}
+                                        className="border-2 border-l-0 border-amber-500 bg-amber-100 rounded-r px-1 h-10 text-sm font-bold text-amber-700"
+                                    >
+                                        <option value="percent">%</option>
+                                        <option value="value">R$</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div className="w-28 lg:w-32">
+                                <label className="text-xs font-semibold text-slate-500 uppercase mb-1 block">Valor Venda</label>
+                                <input
+                                    ref={quickPriceRef}
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={quickPrice ?? ''}
+                                    onChange={(e) => setQuickPrice(e.target.value ? Number(e.target.value) : null)}
+                                    placeholder="Auto"
+                                    className="w-full border-2 border-emerald-500 bg-emerald-50 rounded px-2 py-1 h-10 text-lg text-center font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 outline-none placeholder:text-emerald-300"
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
