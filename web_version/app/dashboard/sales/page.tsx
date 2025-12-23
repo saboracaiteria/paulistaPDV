@@ -46,6 +46,8 @@ export default function SalesPage() {
     const [paymentCondition, setPaymentCondition] = useState("a_vista"); // Default condition
     const [clientName, setClientName] = useState("");
     const [whatsappNumber, setWhatsappNumber] = useState("");
+    const [clientAddress, setClientAddress] = useState("");
+    const [saleNotes, setSaleNotes] = useState("");
 
     // Edit Modal State
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -441,6 +443,8 @@ export default function SalesPage() {
             const saleData = {
                 customer_name: clientName || "Consumidor Final",
                 customer_phone: whatsappNumber || null,
+                address: clientAddress || null,
+                observations: saleNotes || null,
                 payment_method: selectedPayment,
                 payment_condition: paymentCondition,
                 subtotal: subTotal,
@@ -471,6 +475,8 @@ export default function SalesPage() {
         setCart([]);
         setClientName("");
         setWhatsappNumber("");
+        setClientAddress("");
+        setSaleNotes("");
     };
 
     const handleBudget = () => {
@@ -578,6 +584,25 @@ export default function SalesPage() {
                                     onKeyDown={(e) => handleEnterKey(e, checkoutPrintRef)}
                                 />
                             </div>
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Endereço de Entrega (Opcional)</Label>
+                            <Input
+                                placeholder="Rua, número, bairro, cidade"
+                                value={clientAddress}
+                                onChange={(e) => setClientAddress(e.target.value)}
+                            />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label>Observações (Opcional)</Label>
+                            <textarea
+                                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                placeholder="Observações sobre a venda ou entrega..."
+                                value={saleNotes}
+                                onChange={(e) => setSaleNotes(e.target.value)}
+                            />
                         </div>
 
                         <Separator />

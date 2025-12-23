@@ -14,22 +14,44 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Printer, Save, Database, Shield, Store } from "lucide-react";
+import { Printer, Save, Database, Shield, Store, Loader2, CheckCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export default function SettingsPage() {
     const [storeSettings, setStoreSettings] = useState({
-        storeName: "Paulista Construção e Varejo",
-        legalName: "Paulista Mat e Cons LTDA",
-        cnpj: "12.345.678/0001-90",
-        ie: "123.456.789.111",
-        address: "Av. Paulista, 1000 - Bela Vista, São Paulo - SP"
+        storeName: "",
+        legalName: "",
+        cnpj: "",
+        ie: "",
+        address: ""
     });
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+    const [saveSuccess, setSaveSuccess] = useState(false);
+    const [settingsId, setSettingsId] = useState<number | null>(null);
 
     useEffect(() => {
-        const saved = localStorage.getItem("eptus_store_settings");
-        if (saved) {
-            setStoreSettings(JSON.parse(saved));
-        }
+        const fetchSettings = async () => {
+            setLoading(true);
+            const { data, error } = await supabase
+                .from("store_settings")
+                .select("*")
+                .limit(1)
+                .single();
+
+            if (data && !error) {
+                setSettingsId(data.id);
+                setStoreSettings({
+                    storeName: data.store_name || "",
+                    legalName: data.legal_name || "",
+                    cnpj: data.cnpj || "",
+                    ie: data.ie || "",
+                    address: data.address || ""
+                });
+            }
+            setLoading(false);
+        };
+        fetchSettings();
     }, []);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -39,9 +61,47 @@ export default function SettingsPage() {
         });
     };
 
-    const handleSave = () => {
-        localStorage.setItem("eptus_store_settings", JSON.stringify(storeSettings));
-        alert("Configurações salvas com sucesso!");
+    const handleSave = async () => {
+        setSaving(true);
+        setSaveSuccess(false);
+
+        const payload = {
+            store_name: storeSettings.storeName,
+            legal_name: storeSettings.legalName,
+            cnpj: storeSettings.cnpj,
+            ie: storeSettings.ie,
+            address: storeSettings.address,
+            updated_at: new Date().toISOString()
+        };
+
+        let error;
+        if (settingsId) {
+            // Atualizar registro existente
+            const result = await supabase
+                .from("store_settings")
+                .update(payload)
+                .eq("id", settingsId);
+            error = result.error;
+        } else {
+            // Inserir novo registro
+            const result = await supabase
+                .from("store_settings")
+                .insert(payload)
+                .select()
+                .single();
+            if (result.data) {
+                setSettingsId(result.data.id);
+            }
+            error = result.error;
+        }
+
+        setSaving(false);
+        if (error) {
+            alert("Erro ao salvar configurações: " + error.message);
+        } else {
+            setSaveSuccess(true);
+            setTimeout(() => setSaveSuccess(false), 3000);
+        }
     };
 
     return (
@@ -124,8 +184,14 @@ export default function SettingsPage() {
                             </div>
                         </CardContent>
                         <CardFooter className="justify-end">
-                            <Button className="gap-2" onClick={handleSave}>
-                                <Save className="h-4 w-4" /> Salvar
+                            <Button className="gap-2" onClick={handleSave} disabled={saving}>
+                                {saving ? (
+                                    <><Loader2 className="h-4 w-4 animate-spin" /> Salvando...</>
+                                ) : saveSuccess ? (
+                                    <><CheckCircle className="h-4 w-4 text-green-500" /> Salvo!</>
+                                ) : (
+                                    <><Save className="h-4 w-4" /> Salvar</>
+                                )}
                             </Button>
                         </CardFooter>
                     </Card>

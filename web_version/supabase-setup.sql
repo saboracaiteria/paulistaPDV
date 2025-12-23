@@ -114,6 +114,8 @@ create table if not exists public.sales (
   id bigint primary key generated always as identity,
   customer_name text,
   customer_phone text,
+  address text,
+  observations text,
   payment_method text,
   payment_condition text,
   subtotal numeric,
