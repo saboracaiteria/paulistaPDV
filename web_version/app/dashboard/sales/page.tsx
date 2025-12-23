@@ -727,6 +727,25 @@ export default function SalesPage() {
                                     className={`w-full border-2 rounded px-2 py-1 h-10 text-lg text-center font-bold outline-none ${pendingProduct ? 'border-emerald-500 bg-emerald-100' : 'border-emerald-500 bg-emerald-50'} text-emerald-700 focus:ring-2 focus:ring-emerald-500 placeholder:text-emerald-300`}
                                 />
                             </div>
+                            {/* Mobile Add Button */}
+                            <button
+                                onClick={() => {
+                                    if (pendingProduct) {
+                                        quickAddToCart(pendingProduct);
+                                        setPendingProduct(null);
+                                    } else if (selectedProductId) {
+                                        const product = filteredProducts.find(p => p.id === selectedProductId);
+                                        if (product) quickAddToCart(product);
+                                    }
+                                }}
+                                disabled={!pendingProduct && !selectedProductId}
+                                className={`lg:hidden flex items-center justify-center w-12 h-10 rounded-lg font-bold text-white shadow-lg transition-all self-end ${pendingProduct || selectedProductId
+                                        ? 'bg-green-600 hover:bg-green-700 active:scale-95'
+                                        : 'bg-slate-300 cursor-not-allowed'
+                                    }`}
+                            >
+                                <Plus className="h-6 w-6" />
+                            </button>
                         </div>
                     </div>
                 </div>
