@@ -44,11 +44,16 @@ export default function CustomersPage() {
         city: ""
     });
 
-    const filteredClients = clients.filter(client =>
-        client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        client.phone.includes(searchTerm)
-    );
+    // Smart search - supports multiple words (e.g., "JO SIL" finds "João Silva")
+    const filteredClients = clients.filter(client => {
+        if (!searchTerm.trim()) return true;
+
+        const words = searchTerm.trim().split(/\s+/).filter(w => w.length > 0);
+        const searchableText = `${client.name} ${client.email} ${client.phone} ${client.city}`.toLowerCase();
+
+        // All words must be present (AND logic)
+        return words.every(word => searchableText.includes(word.toLowerCase()));
+    });
 
     const handleOpenDialog = (client?: any) => {
         if (client) {

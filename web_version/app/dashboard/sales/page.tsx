@@ -71,6 +71,7 @@ export default function SalesPage() {
     const [quickDiscount, setQuickDiscount] = useState(0);
     const [quickDiscountType, setQuickDiscountType] = useState<"value" | "percent">("percent");
     const [quickPrice, setQuickPrice] = useState<number | null>(null); // null = use product price
+    const [pendingProduct, setPendingProduct] = useState<Product | null>(null); // Product waiting to be added after field navigation
 
     const listRef = useRef<HTMLDivElement>(null);
     const searchInputRef = useRef<HTMLInputElement>(null);
@@ -208,8 +209,10 @@ export default function SalesPage() {
                 e.preventDefault();
                 const product = filteredProducts.find(p => p.id === selectedProductId);
                 if (product) {
-                    // Quick add with values from top fields
-                    quickAddToCart(product);
+                    // Set pending product and focus on quantity field
+                    setPendingProduct(product);
+                    quickQuantityRef.current?.focus();
+                    quickQuantityRef.current?.select();
                 }
             }
         };
@@ -645,7 +648,14 @@ export default function SalesPage() {
                                     min="1"
                                     value={quickQuantity}
                                     onChange={(e) => setQuickQuantity(Math.max(1, Number(e.target.value)))}
-                                    className="w-full border-2 border-cyan-500 bg-cyan-50 rounded px-2 py-1 h-10 text-xl text-center font-bold text-cyan-700 focus:ring-2 focus:ring-cyan-500 outline-none"
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            quickDiscountRef.current?.focus();
+                                            quickDiscountRef.current?.select();
+                                        }
+                                    }}
+                                    className={`w-full border-2 rounded px-2 py-1 h-10 text-xl text-center font-bold outline-none ${pendingProduct ? 'border-cyan-500 bg-cyan-100 ring-2 ring-cyan-400' : 'border-cyan-500 bg-cyan-50'} text-cyan-700 focus:ring-2 focus:ring-cyan-500`}
                                 />
                             </div>
                             <div className="w-24 lg:w-28">
@@ -657,7 +667,14 @@ export default function SalesPage() {
                                         min="0"
                                         value={quickDiscount}
                                         onChange={(e) => setQuickDiscount(Number(e.target.value))}
-                                        className="w-full border-2 border-amber-500 bg-amber-50 rounded-l px-2 py-1 h-10 text-lg text-center font-bold text-amber-700 focus:ring-2 focus:ring-amber-500 outline-none"
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                e.preventDefault();
+                                                quickPriceRef.current?.focus();
+                                                quickPriceRef.current?.select();
+                                            }
+                                        }}
+                                        className={`w-full border-2 rounded-l px-2 py-1 h-10 text-lg text-center font-bold outline-none ${pendingProduct ? 'border-amber-500 bg-amber-100' : 'border-amber-500 bg-amber-50'} text-amber-700 focus:ring-2 focus:ring-amber-500`}
                                     />
                                     <select
                                         value={quickDiscountType}
@@ -678,8 +695,17 @@ export default function SalesPage() {
                                     min="0"
                                     value={quickPrice ?? ''}
                                     onChange={(e) => setQuickPrice(e.target.value ? Number(e.target.value) : null)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") {
+                                            e.preventDefault();
+                                            if (pendingProduct) {
+                                                quickAddToCart(pendingProduct);
+                                                setPendingProduct(null);
+                                            }
+                                        }
+                                    }}
                                     placeholder="Auto"
-                                    className="w-full border-2 border-emerald-500 bg-emerald-50 rounded px-2 py-1 h-10 text-lg text-center font-bold text-emerald-700 focus:ring-2 focus:ring-emerald-500 outline-none placeholder:text-emerald-300"
+                                    className={`w-full border-2 rounded px-2 py-1 h-10 text-lg text-center font-bold outline-none ${pendingProduct ? 'border-emerald-500 bg-emerald-100' : 'border-emerald-500 bg-emerald-50'} text-emerald-700 focus:ring-2 focus:ring-emerald-500 placeholder:text-emerald-300`}
                                 />
                             </div>
                         </div>

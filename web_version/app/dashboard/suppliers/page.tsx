@@ -41,10 +41,15 @@ export default function SuppliersPage() {
         category: ""
     });
 
-    const filteredSuppliers = suppliers.filter(s =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.email.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Smart search - supports multiple words
+    const filteredSuppliers = suppliers.filter(s => {
+        if (!searchTerm.trim()) return true;
+
+        const words = searchTerm.trim().split(/\s+/).filter(w => w.length > 0);
+        const searchableText = `${s.name} ${s.contact} ${s.email} ${s.category}`.toLowerCase();
+
+        return words.every(word => searchableText.includes(word.toLowerCase()));
+    });
 
     const handleOpenDialog = (supplier?: Supplier) => {
         if (supplier) {
