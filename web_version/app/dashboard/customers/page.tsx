@@ -175,7 +175,6 @@ export default function CustomersPage() {
                         type="file"
                         ref={fileInputRef}
                         className="hidden"
-                        className="hidden"
                         accept=".json,.pdf,.csv,.xlsx,.xls"
                         onChange={handleFileUpload}
                     />

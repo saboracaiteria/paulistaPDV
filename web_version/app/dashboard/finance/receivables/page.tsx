@@ -232,7 +232,7 @@ export default function ReceivablesPage() {
                             <Checkbox
                                 id="overdue"
                                 checked={onlyOverdue}
-                                onCheckedChange={(c) => setOnlyOverdue(!!c)}
+                                onChange={(e) => setOnlyOverdue(e.target.checked)}
                             />
                             <Label htmlFor="overdue" className="cursor-pointer">Apenas Vencidas</Label>
                         </div>
@@ -264,7 +264,7 @@ export default function ReceivablesPage() {
                                     <th className="h-12 px-4 w-[50px] no-print">
                                         <Checkbox
                                             checked={selectedIds.length === activeReceivables.length && activeReceivables.length > 0}
-                                            onCheckedChange={() => toggleAll(activeReceivables)}
+                                            onChange={() => toggleAll(activeReceivables)}
                                         />
                                     </th>
                                     <th className="h-12 px-4 text-left font-medium text-muted-foreground">Descrição</th>
@@ -284,7 +284,7 @@ export default function ReceivablesPage() {
                                             <td className="p-4 no-print">
                                                 <Checkbox
                                                     checked={selectedIds.includes(item.id)}
-                                                    onCheckedChange={() => toggleSelection(item.id)}
+                                                    onChange={() => toggleSelection(item.id)}
                                                 />
                                             </td>
                                             <td className="p-4 font-medium">{item.description}</td>

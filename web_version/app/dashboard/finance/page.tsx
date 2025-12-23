@@ -64,7 +64,7 @@ export default function FinancePage() {
     }, [isDialogOpen]);
 
     // Handle Enter Key
-    const handleEnterKey = (e: React.KeyboardEvent, nextRef: React.RefObject<HTMLElement> | (() => void)) => {
+    const handleEnterKey = (e: React.KeyboardEvent, nextRef: React.RefObject<any> | (() => void)) => {
         if (e.key === "Enter") {
             e.preventDefault();
             if (typeof nextRef === 'function') {
