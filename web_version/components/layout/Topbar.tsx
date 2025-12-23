@@ -1,13 +1,26 @@
 "use client";
 
-import { Bell, Search, User } from "lucide-react";
+import { Bell, Search, User, Menu } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/contexts/SidebarContext";
 
 export function Topbar() {
+    const { toggleMobile } = useSidebar();
+
     return (
-        <header className="flex h-16 items-center justify-between border-b bg-card/50 px-6 backdrop-blur-xl">
-            <div className="flex items-center gap-4">
-                <div className="relative w-full max-w-md md:w-80">
+        <header className="flex h-16 items-center justify-between border-b bg-card/50 px-4 sm:px-6 backdrop-blur-xl">
+            <div className="flex items-center gap-3">
+                {/* Mobile menu button */}
+                <Button
+                    variant="ghost"
+                    size="icon"
+                    className="lg:hidden"
+                    onClick={toggleMobile}
+                >
+                    <Menu className="h-5 w-5" />
+                </Button>
+
+                <div className="relative w-full max-w-md md:w-80 hidden sm:block">
                     <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                     <input
                         placeholder="Buscar..."
@@ -15,7 +28,7 @@ export function Topbar() {
                     />
                 </div>
             </div>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-2 sm:gap-4">
                 <Button variant="ghost" size="icon" className="relative">
                     <Bell className="h-5 w-5" />
                     <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
