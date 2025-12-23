@@ -77,12 +77,37 @@ export default function ProductsPage() {
                 .from('products')
                 .select('*', { count: 'exact' });
 
+            let clientSideFilter: ((products: Product[]) => Product[]) | null = null;
+
             if (search) {
-                // Search by ID or Name
-                if (!isNaN(Number(search))) {
-                    query = query.or(`id.eq.${search},name.ilike.%${search}%`);
+                const cleanTerm = search.trim();
+
+                // Check if it's a number (ID search)
+                if (!isNaN(Number(cleanTerm)) && cleanTerm.length <= 6) {
+                    query = query.or(`id.eq.${cleanTerm},name.ilike.%${cleanTerm}%`);
                 } else {
-                    query = query.ilike('name', `%${search}%`);
+                    // Split search term into words for intelligent search
+                    const words = cleanTerm.split(/\s+/).filter(w => w.length > 0);
+
+                    if (words.length === 1) {
+                        query = query.ilike('name', `%${words[0]}%`);
+                    } else {
+                        // Multiple words - build OR filter for server
+                        let combinedFilter = '';
+                        words.forEach((word, index) => {
+                            if (index > 0) combinedFilter += ',';
+                            combinedFilter += `name.ilike.%${word}%`;
+                        });
+                        query = query.or(combinedFilter);
+
+                        // Will filter client-side for AND logic
+                        clientSideFilter = (data: Product[]) => {
+                            return data.filter(product => {
+                                const name = product.name.toLowerCase();
+                                return words.every(word => name.includes(word.toLowerCase()));
+                            });
+                        };
+                    }
                 }
             }
 
@@ -91,15 +116,22 @@ export default function ProductsPage() {
 
             const { data, error, count } = await query
                 .order('id', { ascending: true })
-                .range(from, to);
+                .range(from, to * 2); // Fetch more for client-side filtering
 
             if (error) throw error;
 
-            if (data) setProducts(data);
-            if (count !== null) setTotalProducts(count);
+            if (data) {
+                if (clientSideFilter) {
+                    const filtered = clientSideFilter(data);
+                    setProducts(filtered.slice(0, itemsPerPage));
+                    setTotalProducts(filtered.length);
+                } else {
+                    setProducts(data.slice(0, itemsPerPage));
+                    if (count !== null) setTotalProducts(count);
+                }
+            }
         } catch (error) {
             console.error("Error fetching products:", error);
-            // Silent error or toast
         } finally {
             setIsLoading(false);
         }

@@ -104,21 +104,54 @@ export default function SalesPage() {
         let query = supabase
             .from('products')
             .select('*')
-            .limit(50); // Limit results for performance
+            .limit(100); // Increased limit for better search results
 
         if (term) {
             const cleanTerm = term.trim();
-            if (!isNaN(Number(cleanTerm))) {
-                // Exact match for ID or searching in name
+
+            // Check if it's a number (ID search)
+            if (!isNaN(Number(cleanTerm)) && cleanTerm.length <= 6) {
                 query = query.or(`id.eq.${cleanTerm},name.ilike.%${cleanTerm}%`);
             } else {
-                query = query.ilike('name', `%${cleanTerm}%`);
+                // Split search term into words for intelligent search
+                // This allows "BLC CIM 14" to find "BLOCO CIMENTO 14X19X39"
+                const words = cleanTerm.split(/\s+/).filter(w => w.length > 0);
+
+                if (words.length === 1) {
+                    // Single word - simple search
+                    query = query.ilike('name', `%${words[0]}%`);
+                } else {
+                    // Multiple words - each word must be found in name
+                    // Build a filter that requires all words to be present
+                    // Using AND logic: each word must match
+                    let combinedFilter = '';
+                    words.forEach((word, index) => {
+                        if (index > 0) combinedFilter += ',';
+                        combinedFilter += `name.ilike.%${word}%`;
+                    });
+
+                    query = query.or(combinedFilter);
+                }
             }
         }
 
         const { data, error } = await query.order('id', { ascending: true });
 
-        if (data) setProducts(data);
+        if (data) {
+            // If multiple words, filter client-side to ensure ALL words match (AND logic)
+            const cleanTerm = term.trim();
+            const words = cleanTerm.split(/\s+/).filter(w => w.length > 0);
+
+            if (words.length > 1) {
+                const filtered = data.filter(product => {
+                    const name = product.name.toLowerCase();
+                    return words.every(word => name.includes(word.toLowerCase()));
+                });
+                setProducts(filtered.slice(0, 50));
+            } else {
+                setProducts(data.slice(0, 50));
+            }
+        }
     };
 
     // Filter products - No longer needed on client side since we fetch what we want
