@@ -41,6 +41,7 @@ export default function SalesPage() {
 
     // Checkout State
     const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+    const [isCartOpen, setIsCartOpen] = useState(false); // Mobile cart modal
     const [selectedPayment, setSelectedPayment] = useState("money");
     const [paymentCondition, setPaymentCondition] = useState("a_vista"); // Default condition
     const [clientName, setClientName] = useState("");
@@ -172,6 +173,12 @@ export default function SalesPage() {
                 e.preventDefault();
                 if (isCheckoutOpen) setIsCheckoutOpen(false);
                 else if (isEditModalOpen) setIsEditModalOpen(false);
+                else if (isCartOpen) setIsCartOpen(false);
+                else {
+                    // After adding to cart or anytime, ESC goes back to search
+                    setPendingProduct(null);
+                    searchInputRef.current?.focus();
+                }
                 return;
             }
 
@@ -767,14 +774,14 @@ export default function SalesPage() {
                     </div>
                 </div>
 
-                {/* Cart */}
-                <div className="w-full lg:w-96 flex flex-col border border-slate-300 bg-slate-50 rounded-lg shadow-sm min-h-[300px] lg:min-h-0">
+                {/* Cart - Hidden on mobile, shown on desktop */}
+                <div className="hidden lg:flex w-96 flex-col border border-slate-300 bg-slate-50 rounded-lg shadow-sm">
                     <div className="p-3 bg-slate-800 text-white font-bold flex justify-between rounded-t-lg">
                         <span>CUPOM FISCAL</span>
                         <span>{cart.length.toString().padStart(2, '0')} ITENS</span>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-50">
+                    <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-50 max-h-[400px]">
                         {cart.map((item, idx) => {
                             let finalP = item.price;
                             if (item.discount > 0) {
@@ -821,6 +828,78 @@ export default function SalesPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Mobile Floating Cart Button */}
+            <button
+                onClick={() => setIsCartOpen(true)}
+                className="lg:hidden fixed bottom-6 right-6 z-50 bg-green-600 hover:bg-green-700 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-2xl animate-pulse"
+            >
+                <ShoppingCart className="h-7 w-7" />
+                {cart.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
+                        {cart.length}
+                    </span>
+                )}
+            </button>
+
+            {/* Mobile Cart Modal */}
+            <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
+                <DialogContent className="max-w-[95vw] max-h-[90vh] p-0 overflow-hidden">
+                    <div className="flex flex-col h-full max-h-[85vh]">
+                        <div className="p-3 bg-slate-800 text-white font-bold flex justify-between">
+                            <span>🛒 CUPOM FISCAL</span>
+                            <span>{cart.length.toString().padStart(2, '0')} ITENS</span>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50">
+                            {cart.map((item, idx) => {
+                                let finalP = item.price;
+                                if (item.discount > 0) {
+                                    if (item.discountType === 'value') finalP -= item.discount;
+                                    else finalP -= finalP * (item.discount / 100);
+                                }
+                                const total = finalP * item.quantity;
+                                return (
+                                    <div key={idx} onClick={() => { setIsCartOpen(false); openEditModal(item, idx); }} className="bg-white border border-slate-200 p-3 rounded-lg shadow-sm hover:border-cyan-400 cursor-pointer relative">
+                                        <div className="font-bold text-slate-800 truncate pr-8 text-sm">{item.name}</div>
+                                        <div className="flex justify-between items-center mt-2">
+                                            <div className="text-xs text-slate-500">{item.quantity} x {formatCurrency(item.price)}</div>
+                                            <div className="font-bold text-lg text-slate-900">{formatCurrency(total)}</div>
+                                        </div>
+                                        <button onClick={(e) => { e.stopPropagation(); removeFromCart(idx); }} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 p-1"><X className="h-5 w-5" /></button>
+                                    </div>
+                                )
+                            })}
+                            {cart.length === 0 && (
+                                <div className="text-center text-slate-400 py-16 text-lg">🛒 Carrinho Vazio</div>
+                            )}
+                        </div>
+
+                        <div className="bg-white border-t p-4 space-y-3">
+                            <div className="flex justify-between text-sm text-slate-500">
+                                <span>Subtotal</span>
+                                <span>{formatCurrency(subTotal)}</span>
+                            </div>
+                            <div className="flex justify-between items-center gap-2">
+                                <span className="text-xs font-bold text-slate-700">DESCONTO:</span>
+                                <div className="w-24">
+                                    <input className="w-full border rounded px-2 py-1 text-right" value={globalDiscount.value} type="number" onChange={(e) => setGlobalDiscount({ ...globalDiscount, value: Number(e.target.value) })} />
+                                </div>
+                            </div>
+                            <div className="border-t pt-3 mt-2">
+                                <div className="flex justify-between items-end">
+                                    <span className="text-2xl font-bold text-slate-800">TOTAL</span>
+                                    <span className="text-4xl font-extrabold text-green-600">{formatCurrency(getFinalTotal())}</span>
+                                </div>
+                            </div>
+                            <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-14 text-xl shadow-lg" onClick={() => { setIsCartOpen(false); handleOpenCheckout(); }}>
+                                ✅ FINALIZAR (F5)
+                            </Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
             {/* Using inline separator for simplicity/robustness as earlier */}
             <div className="hidden"><Separator /></div>
         </div>
