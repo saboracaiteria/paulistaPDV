@@ -340,7 +340,7 @@ export default function SalesPage() {
     };
 
     // Generic Enter Navigation Handler
-    const handleEnterKey = (e: React.KeyboardEvent, nextRef: React.RefObject<HTMLElement> | (() => void)) => {
+    const handleEnterKey = (e: React.KeyboardEvent, nextRef: React.RefObject<HTMLElement | null> | (() => void)) => {
         if (e.key === "Enter") {
             e.preventDefault();
             if (typeof nextRef === 'function') {
