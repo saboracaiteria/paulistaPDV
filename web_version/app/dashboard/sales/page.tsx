@@ -123,6 +123,13 @@ export default function SalesPage() {
     // Keyboard Navigation
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === "Escape") {
+                e.preventDefault();
+                if (isCheckoutOpen) setIsCheckoutOpen(false);
+                else if (isEditModalOpen) setIsEditModalOpen(false);
+                return;
+            }
+
             if (isEditModalOpen || isCheckoutOpen) return;
 
             if (e.key === "F5") {
@@ -381,7 +388,7 @@ export default function SalesPage() {
                                 value={editingItem.quantity}
                                 onChange={(e) => setEditingItem({ ...editingItem, quantity: Number(e.target.value) })}
                                 onKeyDown={(e) => handleEnterKey(e, editDiscountRef)}
-                                className="col-span-3"
+                                className="col-span-3 bg-cyan-50 border-cyan-300 focus:border-cyan-500 focus:ring-cyan-500 text-lg font-bold"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -393,8 +400,9 @@ export default function SalesPage() {
                                     value={editingItem.discount}
                                     onChange={(e) => setEditingItem({ ...editingItem, discount: Number(e.target.value) })}
                                     onKeyDown={(e) => handleEnterKey(e, handleSaveItem)}
+                                    className="bg-amber-50 border-amber-300 focus:border-amber-500 focus:ring-amber-500"
                                 />
-                                <select className="border rounded p-1" value={editingItem.discountType} onChange={(e) => setEditingItem({ ...editingItem, discountType: e.target.value as "value" | "percent" })}>
+                                <select className="border rounded p-1 bg-amber-50 border-amber-300" value={editingItem.discountType} onChange={(e) => setEditingItem({ ...editingItem, discountType: e.target.value as "value" | "percent" })}>
                                     <option value="value">R$</option>
                                     <option value="percent">%</option>
                                 </select>
@@ -550,16 +558,16 @@ export default function SalesPage() {
                 </div>
             </div>
 
-            <div className="flex flex-1 gap-4 overflow-hidden">
+            <div className="flex flex-1 gap-4 overflow-hidden flex-col lg:flex-row">
                 {/* List */}
                 <div className="flex-1 flex flex-col border border-slate-300 bg-white rounded-lg shadow-sm overflow-hidden text-slate-800 font-sans">
-                    <div className="bg-slate-200 border-b border-slate-300 grid grid-cols-12 gap-1 px-2 py-2 text-xs font-bold text-slate-700 uppercase">
-                        <div className="col-span-1">Código</div>
-                        <div className="col-span-1 text-center">Sts</div>
-                        <div className="col-span-5">Descrição</div>
-                        <div className="col-span-2">Categoria</div>
+                    <div className="bg-slate-200 border-b border-slate-300 grid grid-cols-6 lg:grid-cols-12 gap-1 px-2 py-2 text-xs font-bold text-slate-700 uppercase">
+                        <div className="col-span-1">Cód</div>
+                        <div className="col-span-1 text-center hidden lg:block">Sts</div>
+                        <div className="col-span-3 lg:col-span-5">Descrição</div>
+                        <div className="col-span-2 hidden lg:block">Categoria</div>
                         <div className="col-span-1 text-right">Preço</div>
-                        <div className="col-span-2 text-center">Estoque</div>
+                        <div className="col-span-1 text-center hidden lg:block">Est.</div>
                     </div>
 
                     <div className="flex-1 overflow-y-auto bg-white" ref={listRef}>
@@ -572,17 +580,17 @@ export default function SalesPage() {
                                     // Remove double click if we rely on F2/Enter mostly, but keeping it for mouse users
                                     onDoubleClick={() => openEditModal(product)}
                                     className={cn(
-                                        "grid grid-cols-12 gap-1 px-2 py-1.5 text-xs border-b border-slate-100 cursor-pointer transition-colors items-center select-none",
+                                        "grid grid-cols-6 lg:grid-cols-12 gap-1 px-2 py-1.5 text-xs border-b border-slate-100 cursor-pointer transition-colors items-center select-none",
                                         index % 2 === 0 ? "bg-slate-50" : "bg-white",
                                         isSelected ? "bg-[#00BCD4] text-black font-extrabold border-cyan-600" : "hover:bg-blue-50"
                                     )}
                                 >
                                     <div className="col-span-1">{product.id}</div>
-                                    <div className="col-span-1 text-center"><div className={cn("w-2 h-2 rounded-full mx-auto", product.stock > 0 ? "bg-green-500" : "bg-red-500")} /></div>
-                                    <div className="col-span-5 truncate">{product.name}</div>
-                                    <div className="col-span-2 truncate opacity-70">{product.category}</div>
+                                    <div className="col-span-1 text-center hidden lg:block"><div className={cn("w-2 h-2 rounded-full mx-auto", product.stock > 0 ? "bg-green-500" : "bg-red-500")} /></div>
+                                    <div className="col-span-3 lg:col-span-5 truncate">{product.name}</div>
+                                    <div className="col-span-2 truncate opacity-70 hidden lg:block">{product.category}</div>
                                     <div className="col-span-1 text-right font-mono">{formatCurrency(product.price)}</div>
-                                    <div className="col-span-2 text-center">{product.stock}</div>
+                                    <div className="col-span-1 text-center hidden lg:block">{product.stock}</div>
                                 </div>
                             )
                         })}
@@ -593,7 +601,7 @@ export default function SalesPage() {
                 </div>
 
                 {/* Cart */}
-                <div className="w-96 flex flex-col border border-slate-300 bg-slate-50 rounded-lg shadow-sm">
+                <div className="w-full lg:w-96 flex flex-col border border-slate-300 bg-slate-50 rounded-lg shadow-sm min-h-[300px] lg:min-h-0">
                     <div className="p-3 bg-slate-800 text-white font-bold flex justify-between rounded-t-lg">
                         <span>CUPOM FISCAL</span>
                         <span>{cart.length.toString().padStart(2, '0')} ITENS</span>

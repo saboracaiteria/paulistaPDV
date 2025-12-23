@@ -203,28 +203,27 @@ export default function FinancePage() {
                         </div>
                     </div>
                 </CardHeader>
-                <CardContent>
-                    <div className="space-y-4">
+                <CardContent className="p-0">
+                    {/* List View - More compact */}
+                    <div className="divide-y">
                         {transactions.map((item) => (
                             <div
                                 key={item.id}
-                                className="flex items-center justify-between rounded-lg border p-4 transition-colors hover:bg-muted/50"
+                                className="flex items-center justify-between p-3 sm:p-4 hover:bg-muted/50 transition-colors"
                             >
-                                <div className="flex items-center gap-4">
-                                    <div className={`flex h-10 w-10 items-center justify-center rounded-full ${item.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
+                                <div className="flex items-center gap-3 min-w-0 flex-1">
+                                    <div className={`flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full ${item.type === 'income' ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600'
                                         }`}>
-                                        {item.type === 'income' ? <ArrowUpRight className="h-5 w-5" /> : <ArrowDownRight className="h-5 w-5" />}
+                                        {item.type === 'income' ? <ArrowUpRight className="h-4 w-4 sm:h-5 sm:w-5" /> : <ArrowDownRight className="h-4 w-4 sm:h-5 sm:w-5" />}
                                     </div>
-                                    <div className="space-y-1">
-                                        <p className="text-sm font-medium leading-none">{item.desc}</p>
-                                        <div className="flex items-center text-xs text-muted-foreground gap-2">
-                                            <span>{item.date}</span>
-                                            <span>•</span>
-                                            <span>{item.method}</span>
-                                        </div>
+                                    <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-medium leading-none truncate">{item.desc}</p>
+                                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                                            {item.date} • {item.method}
+                                        </p>
                                     </div>
                                 </div>
-                                <div className={`font-bold ${item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
+                                <div className={`text-sm sm:text-base font-bold shrink-0 ml-2 ${item.type === 'income' ? 'text-emerald-600' : 'text-rose-600'
                                     }`}>
                                     {item.type === 'income' ? '+' : '-'} {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.amount)}
                                 </div>

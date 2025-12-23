@@ -267,24 +267,56 @@ export default function ProductsPage() {
         event.target.value = '';
     };
 
-    const confirmImport = () => {
-        setProducts(prev => {
-            const newState = [...prev];
-            // Apply updates
-            importSummary.updatedItems.forEach(update => {
-                const index = newState.findIndex(p => p.id === update.id);
-                if (index >= 0) newState[index] = update;
-            });
-            // Apply additions
-            let maxId = Math.max(...newState.map(p => p.id), 0);
-            importSummary.newItems.forEach(newItem => {
-                maxId++;
-                newState.unshift({ ...newItem, id: maxId }); // Add to top
-            });
-            return newState;
-        });
-        setReviewOpen(false);
-        alert("Importação aplicada com sucesso!");
+    const confirmImport = async () => {
+        try {
+            // Get max ID for new items
+            const { data: maxIdData } = await supabase
+                .from('products')
+                .select('id')
+                .order('id', { ascending: false })
+                .limit(1)
+                .single();
+
+            let maxId = maxIdData?.id || 0;
+
+            // Insert new items
+            if (importSummary.newItems.length > 0) {
+                const newItemsWithIds = importSummary.newItems.map(item => {
+                    maxId++;
+                    return { ...item, id: maxId };
+                });
+
+                const { error: insertError } = await supabase
+                    .from('products')
+                    .insert(newItemsWithIds);
+
+                if (insertError) throw insertError;
+            }
+
+            // Update existing items
+            for (const item of importSummary.updatedItems) {
+                const { error: updateError } = await supabase
+                    .from('products')
+                    .update({
+                        name: item.name,
+                        category: item.category,
+                        price: item.price,
+                        stock: item.stock,
+                        status: item.status
+                    })
+                    .eq('id', item.id);
+
+                if (updateError) throw updateError;
+            }
+
+            // Refresh the list
+            fetchProducts(currentPage, searchTerm);
+            setReviewOpen(false);
+            alert(`Importação concluída! ${importSummary.newItems.length} novos, ${importSummary.updatedItems.length} atualizados.`);
+        } catch (error) {
+            console.error("Error importing products:", error);
+            alert("Erro ao salvar importação no banco de dados.");
+        }
     };
 
     return (
