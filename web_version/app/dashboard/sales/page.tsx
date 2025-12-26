@@ -495,6 +495,55 @@ export default function SalesPage() {
                 sale_id: saleResult?.id || null
             });
 
+            // ===== CONTROLE DE ESTOQUE AUTOMÁTICO =====
+            // Baixar estoque de cada produto vendido
+            for (const item of cart) {
+                // Buscar estoque atual do produto
+                const { data: currentProduct } = await supabase
+                    .from('products')
+                    .select('stock')
+                    .eq('id', item.id)
+                    .single();
+
+                if (currentProduct) {
+                    const newStock = Math.max(0, (currentProduct.stock || 0) - item.quantity);
+                    await supabase
+                        .from('products')
+                        .update({ stock: newStock })
+                        .eq('id', item.id);
+                }
+            }
+
+
+            // ===== GERAÇÃO DE DUPLICATAS AUTOMÁTICAS =====
+            // Se for parcelado (duplicata ou cartão crédito), criar contas a receber
+            if ((selectedPayment === 'duplicata' || selectedPayment === 'cartão crédito') && paymentCondition !== 'a_vista') {
+                const installments = calculateInstallments(getFinalTotal(), paymentCondition);
+
+                for (const inst of installments) {
+                    // Calcular data de vencimento baseado nos dias da parcela
+                    const dueDate = new Date();
+                    let daysToAdd = 0;
+
+                    if (inst.days.toLowerCase().includes('entrada')) {
+                        daysToAdd = 0;
+                    } else {
+                        const daysMatch = inst.days.match(/\d+/);
+                        daysToAdd = daysMatch ? parseInt(daysMatch[0]) : 30 * inst.number;
+                    }
+
+                    dueDate.setDate(dueDate.getDate() + daysToAdd);
+
+                    await supabase.from('receivables').insert({
+                        description: `Venda #${saleResult.id} - Parcela ${inst.number}/${installments.length}`,
+                        customer: clientName || 'Consumidor Final',
+                        value: inst.value,
+                        due_date: dueDate.toISOString().slice(0, 10),
+                        status: 'Pendente'
+                    });
+                }
+            }
+
         } catch (err) {
             console.error("Error:", err);
         }
@@ -507,6 +556,7 @@ export default function SalesPage() {
         setClientAddress("");
         setSaleNotes("");
     };
+
 
     const handleBudget = () => {
         alert("Orçamento salvo com sucesso! (Simulação)");

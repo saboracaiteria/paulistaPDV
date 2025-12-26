@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BarChart3, TrendingUp, Package, Users, Receipt, CalendarRange, Loader2, Printer, Wallet } from "lucide-react";
+import { BarChart3, TrendingUp, Package, Users, Receipt, CalendarRange, Loader2, Printer, Wallet, Download } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 interface ReportResult {
@@ -368,6 +368,30 @@ export default function ReportsPage() {
         window.print();
     };
 
+    // ===== EXPORTAÇÃO CSV =====
+    const handleExportCSV = () => {
+        if (!reportPreview) return;
+
+        // Limpar caracteres especiais e formatar para CSV
+        let csvContent = reportPreview.content
+            .replace(/━/g, '-')
+            .replace(/📅|📊|💳|🏆|⚠️|✅|🔴|🟡|🟢|💰|📥|📤|💵|📋|📂|📦/g, '')
+            .trim();
+
+        // Criar blob e fazer download
+        const blob = new Blob([csvContent], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        const fileName = `relatorio_${reportPreview.title.toLowerCase().replace(/ /g, '_').replace(/[áàãâ]/g, 'a').replace(/[éèê]/g, 'e').replace(/[íìî]/g, 'i').replace(/[óòõô]/g, 'o').replace(/[úùû]/g, 'u')}_${new Date().toISOString().slice(0, 10)}.txt`;
+
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    };
+
     return (
         <div className="space-y-6">
             <div>
@@ -475,11 +499,15 @@ export default function ReportsPage() {
                         {reportPreview?.content}
                     </div>
                     <DialogFooter className="flex gap-2 sm:justify-between">
-                        <div className="flex-1"></div>
-                        <Button variant="outline" onClick={() => setReportPreview(null)}>Fechar</Button>
-                        <Button onClick={handlePrint} className="gap-2">
-                            <Printer className="h-4 w-4" /> Imprimir
+                        <Button variant="outline" className="gap-2" onClick={handleExportCSV}>
+                            <Download className="h-4 w-4" /> Exportar
                         </Button>
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={() => setReportPreview(null)}>Fechar</Button>
+                            <Button onClick={handlePrint} className="gap-2">
+                                <Printer className="h-4 w-4" /> Imprimir
+                            </Button>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

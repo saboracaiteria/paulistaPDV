@@ -268,6 +268,123 @@ export default function CashierPage() {
         }
     };
 
+    // ===== IMPRESSÃO DO RELATÓRIO DE CAIXA =====
+    const handlePrintReport = () => {
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) {
+            alert('Bloqueador de pop-up impediu a impressão. Permita pop-ups.');
+            return;
+        }
+
+        const salesMovements = movements.filter(m => m.type === 'sale');
+        const reportDate = currentRegister?.opened_at ? new Date(currentRegister.opened_at).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+        const reportTime = currentRegister?.opened_at ? new Date(currentRegister.opened_at).toLocaleTimeString('pt-BR') : '';
+
+        printWindow.document.write(`
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>Relatório de Caixa - ${reportDate}</title>
+                <style>
+                    body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto; }
+                    h1 { text-align: center; border-bottom: 2px solid #333; padding-bottom: 10px; }
+                    .header-info { display: flex; justify-content: space-between; margin: 20px 0; }
+                    .section { margin: 20px 0; }
+                    .section h2 { background: #f0f0f0; padding: 8px; margin-bottom: 10px; }
+                    table { width: 100%; border-collapse: collapse; }
+                    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+                    th { background: #f5f5f5; }
+                    .total-row { font-weight: bold; background: #e8f5e9; }
+                    .summary-box { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 20px 0; }
+                    .summary-item { padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+                    .summary-item .label { font-size: 12px; color: #666; }
+                    .summary-item .value { font-size: 20px; font-weight: bold; }
+                    .positive { color: #2e7d32; }
+                    .negative { color: #c62828; }
+                    @media print { body { padding: 0; } }
+                </style>
+            </head>
+            <body>
+                <h1>📋 RELATÓRIO DE CAIXA</h1>
+                
+                <div class="header-info">
+                    <div><strong>Data:</strong> ${reportDate}</div>
+                    <div><strong>Abertura:</strong> ${reportTime}</div>
+                    <div><strong>Status:</strong> ${currentRegister?.status === 'open' ? '🟢 Aberto' : '🔴 Fechado'}</div>
+                </div>
+
+                <div class="summary-box">
+                    <div class="summary-item">
+                        <div class="label">ABERTURA</div>
+                        <div class="value">${formatCurrency(opening)}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">VENDAS</div>
+                        <div class="value positive">+ ${formatCurrency(sales)}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">SUPRIMENTOS</div>
+                        <div class="value positive">+ ${formatCurrency(suprimentos)}</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="label">SANGRIAS</div>
+                        <div class="value negative">- ${formatCurrency(sangrias)}</div>
+                    </div>
+                </div>
+
+                <div class="summary-item" style="text-align: center; background: #e3f2fd;">
+                    <div class="label">SALDO ESPERADO</div>
+                    <div class="value" style="font-size: 28px;">${formatCurrency(expected)}</div>
+                </div>
+
+                <div class="section">
+                    <h2>📊 Movimentações (${movements.length})</h2>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Tipo</th>
+                                <th>Descrição</th>
+                                <th style="text-align: right;">Valor</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${movements.map(m => `
+                                <tr>
+                                    <td>${new Date(m.created_at).toLocaleTimeString('pt-BR')}</td>
+                                    <td>${getMovementLabel(m.type)}</td>
+                                    <td>${m.description || '-'}</td>
+                                    <td style="text-align: right; ${m.type === 'sangria' ? 'color: #c62828;' : m.type === 'sale' || m.type === 'suprimento' ? 'color: #2e7d32;' : ''}">
+                                        ${m.type === 'sangria' ? '-' : m.type === 'sale' || m.type === 'suprimento' ? '+' : ''}${formatCurrency(m.amount)}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="section">
+                    <h2>💰 Resumo de Vendas (${salesMovements.length})</h2>
+                    <p><strong>Total:</strong> ${formatCurrency(sales)} em ${salesMovements.length} venda(s)</p>
+                </div>
+
+                <hr style="margin-top: 30px;">
+                <p style="text-align: center; color: #666; font-size: 12px;">
+                    Relatório gerado em ${new Date().toLocaleString('pt-BR')} | Paulista PDV
+                </p>
+            </body>
+            </html>
+        `);
+
+        printWindow.document.close();
+        printWindow.focus();
+        setTimeout(() => {
+            printWindow.print();
+            printWindow.close();
+        }, 250);
+    };
+
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -292,11 +409,12 @@ export default function CashierPage() {
                     <Button variant="outline" size="icon" onClick={fetchCurrentRegister}>
                         <RefreshCcw className="h-4 w-4" />
                     </Button>
-                    {isOpen && (
-                        <Button variant="outline" className="gap-2">
-                            <Printer className="h-4 w-4" /> Imprimir
+                    {currentRegister && (
+                        <Button variant="outline" className="gap-2" onClick={handlePrintReport}>
+                            <Printer className="h-4 w-4" /> Imprimir Relatório
                         </Button>
                     )}
+
                 </div>
             </div>
 

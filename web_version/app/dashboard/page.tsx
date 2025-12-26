@@ -1,9 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DollarSign, ShoppingCart, Users, Activity, TrendingUp, Loader2 } from "lucide-react";
+import { DollarSign, ShoppingCart, Users, Activity, TrendingUp, Loader2, AlertTriangle, Package, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
+import { Button } from "@/components/ui/button";
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
 
 interface DashboardStats {
     totalSales: number;
@@ -38,6 +45,8 @@ export default function DashboardPage() {
     const [recentSales, setRecentSales] = useState<Sale[]>([]);
     const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
     const [loading, setLoading] = useState(true);
+    const [lowStockProducts, setLowStockProducts] = useState<{ id: number; name: string; stock: number; category: string }[]>([]);
+    const [showLowStockModal, setShowLowStockModal] = useState(false);
 
     const formatCurrency = (value: number) => {
         return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
@@ -197,10 +206,26 @@ export default function DashboardPage() {
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-                {statCards.map((stat) => (
+                {statCards.map((stat, index) => (
                     <div
                         key={stat.label}
-                        className="rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md"
+                        onClick={index === 3 && stats.lowStockCount > 0 ? async () => {
+                            // Fetch low stock products when clicking the card
+                            const { data } = await supabase
+                                .from('products')
+                                .select('id, name, stock, category')
+                                .lt('stock', 10)
+                                .order('stock', { ascending: true })
+                                .limit(20);
+                            if (data) {
+                                setLowStockProducts(data);
+                                setShowLowStockModal(true);
+                            }
+                        } : undefined}
+                        className={cn(
+                            "rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md",
+                            index === 3 && stats.lowStockCount > 0 && "cursor-pointer hover:border-rose-300 hover:bg-rose-50/50"
+                        )}
                     >
                         <div className="flex items-center justify-between space-y-0 pb-2">
                             <p className="text-sm font-medium text-muted-foreground">
@@ -212,7 +237,10 @@ export default function DashboardPage() {
                         </div>
                         <div className="space-y-1">
                             <div className="text-2xl font-bold">{stat.value}</div>
-                            <p className="text-xs text-muted-foreground">{stat.change}</p>
+                            <p className="text-xs text-muted-foreground">
+                                {stat.change}
+                                {index === 3 && stats.lowStockCount > 0 && " (clique para ver)"}
+                            </p>
                         </div>
                     </div>
                 ))}
@@ -278,6 +306,64 @@ export default function DashboardPage() {
                     </div>
                 </div>
             </div>
+
+            {/* Low Stock Modal */}
+            <Dialog open={showLowStockModal} onOpenChange={setShowLowStockModal}>
+                <DialogContent className="max-w-lg">
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-rose-600">
+                            <AlertTriangle className="h-5 w-5" />
+                            Produtos com Estoque Baixo
+                        </DialogTitle>
+                    </DialogHeader>
+                    <div className="max-h-[400px] overflow-y-auto">
+                        {lowStockProducts.length === 0 ? (
+                            <p className="text-center text-muted-foreground py-8">
+                                Nenhum produto com estoque baixo!
+                            </p>
+                        ) : (
+                            <div className="space-y-2">
+                                {lowStockProducts.map((product) => (
+                                    <div
+                                        key={product.id}
+                                        className={cn(
+                                            "flex items-center justify-between p-3 rounded-lg border",
+                                            product.stock === 0 ? "bg-rose-50 border-rose-200" :
+                                                product.stock < 5 ? "bg-amber-50 border-amber-200" :
+                                                    "bg-slate-50 border-slate-200"
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <Package className={cn(
+                                                "h-5 w-5",
+                                                product.stock === 0 ? "text-rose-500" :
+                                                    product.stock < 5 ? "text-amber-500" : "text-slate-500"
+                                            )} />
+                                            <div>
+                                                <p className="font-medium text-sm">{product.name}</p>
+                                                <p className="text-xs text-muted-foreground">{product.category}</p>
+                                            </div>
+                                        </div>
+                                        <div className={cn(
+                                            "px-3 py-1 rounded-full text-sm font-bold",
+                                            product.stock === 0 ? "bg-rose-500 text-white" :
+                                                product.stock < 5 ? "bg-amber-500 text-white" :
+                                                    "bg-slate-200 text-slate-700"
+                                        )}>
+                                            {product.stock}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    <div className="flex justify-end pt-4 border-t">
+                        <Button variant="outline" onClick={() => setShowLowStockModal(false)}>
+                            Fechar
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
