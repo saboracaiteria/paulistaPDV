@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Product } from "@/lib/products-data";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
@@ -547,6 +548,11 @@ export default function SalesPage() {
         } catch (err) {
             console.error("Error:", err);
         }
+
+        // Notificação de sucesso
+        toast.success('Venda Finalizada!', {
+            description: `Total: ${formatCurrency(getFinalTotal())} - ${clientName || 'Consumidor Final'}`,
+        });
 
         window.print();
         setIsCheckoutOpen(false);

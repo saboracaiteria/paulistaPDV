@@ -5,6 +5,7 @@ import { DollarSign, ShoppingCart, Users, Activity, TrendingUp, Loader2, AlertTr
 import { cn } from "@/lib/utils";
 import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 import {
     Dialog,
     DialogContent,
@@ -140,6 +141,14 @@ export default function DashboardPage() {
                 }
 
                 setMonthlyData(monthlyResults);
+
+                // Notificar sobre estoque baixo
+                if ((lowStockCount || 0) > 0) {
+                    toast.warning(`Atenção: ${lowStockCount} produto(s) com estoque baixo!`, {
+                        description: 'Clique no card "Produtos em Baixa" para ver detalhes.',
+                        duration: 6000,
+                    });
+                }
 
             } catch (error) {
                 console.error('Error fetching dashboard data:', error);
