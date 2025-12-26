@@ -18,59 +18,350 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { BarChart3, TrendingUp, Package, Users, Receipt, CalendarRange, Loader2, Printer } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { BarChart3, TrendingUp, Package, Users, Receipt, CalendarRange, Loader2, Printer, Wallet } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+
+interface ReportResult {
+    title: string;
+    content: string;
+    data?: Record<string, unknown>[];
+}
 
 const REPORTS = [
     {
         category: "Vendas",
         items: [
-            { icon: TrendingUp, title: "Vendas por Período", desc: "Análise detalhada de faturamento diário, semanal ou mensal." },
-            { icon: Users, title: "Vendas por Vendedor", desc: "Desempenho individual e comissões da equipe." },
-            { icon: Receipt, title: "Ticket Médio", desc: "Evolução do valor médio gasto por cliente." },
+            { icon: TrendingUp, title: "Vendas por Período", desc: "Análise detalhada de faturamento diário, semanal ou mensal.", hasDateFilter: true },
+            { icon: Receipt, title: "Ticket Médio", desc: "Evolução do valor médio gasto por cliente.", hasDateFilter: true },
         ]
     },
     {
         category: "Estoque",
         items: [
-            { icon: Package, title: "Produtos Mais Vendidos", desc: "Curva ABC de produtos e movimentação." },
-            { icon: Package, title: "Estoque Baixo", desc: "Relatório de reposição e produtos zerados." },
-            { icon: Package, title: "Inventário Valorizado", desc: "Valor total do estoque atual a preço de custo e venda." },
+            { icon: Package, title: "Produtos Mais Vendidos", desc: "Ranking dos produtos mais vendidos.", hasDateFilter: true },
+            { icon: Package, title: "Estoque Baixo", desc: "Relatório de produtos com estoque crítico.", hasDateFilter: false },
+            { icon: Package, title: "Inventário Valorizado", desc: "Valor total do estoque atual.", hasDateFilter: false },
         ]
     },
     {
         category: "Financeiro",
         items: [
-            { icon: CalendarRange, title: "Fluxo de Caixa", desc: "Entradas e saídas detalhadas por conta." },
-            { icon: CalendarRange, title: "DRE Gerencial", desc: "Demonstrativo de Resultados do Exercício." },
+            { icon: Wallet, title: "Fluxo de Caixa", desc: "Movimentações do caixa por período.", hasDateFilter: true },
+            { icon: CalendarRange, title: "Contas a Receber", desc: "Resumo de valores pendentes e recebidos.", hasDateFilter: false },
         ]
     }
 ];
 
 export default function ReportsPage() {
     const [generating, setGenerating] = useState<string | null>(null);
-    const [reportPreview, setReportPreview] = useState<{ title: string; content: string } | null>(null);
+    const [reportPreview, setReportPreview] = useState<ReportResult | null>(null);
+    const [dateFilter, setDateFilter] = useState<{ title: string; startDate: string; endDate: string } | null>(null);
 
-    const handleGenerateReport = (title: string) => {
+    const formatCurrency = (value: number) => {
+        return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    };
+
+    const generateVendasPorPeriodo = async (startDate: string, endDate: string) => {
+        const { data: sales } = await supabase
+            .from('sales')
+            .select('*')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate + 'T23:59:59')
+            .order('created_at', { ascending: false });
+
+        const totalVendas = sales?.length || 0;
+        const faturamento = sales?.reduce((acc, s) => acc + Number(s.total), 0) || 0;
+        const descontos = sales?.reduce((acc, s) => acc + Number(s.discount || 0), 0) || 0;
+
+        // Agrupar por método de pagamento
+        const byMethod: Record<string, number> = {};
+        sales?.forEach(s => {
+            const method = s.payment_method || 'Não informado';
+            byMethod[method] = (byMethod[method] || 0) + Number(s.total);
+        });
+
+        let content = `📅 Período: ${new Date(startDate).toLocaleDateString('pt-BR')} a ${new Date(endDate).toLocaleDateString('pt-BR')}\n\n`;
+        content += `📊 RESUMO DE VENDAS\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        content += `Total de Vendas: ${totalVendas}\n`;
+        content += `Faturamento Bruto: ${formatCurrency(faturamento)}\n`;
+        content += `Descontos Concedidos: ${formatCurrency(descontos)}\n`;
+        content += `Faturamento Líquido: ${formatCurrency(faturamento - descontos)}\n\n`;
+        content += `💳 POR FORMA DE PAGAMENTO\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        Object.entries(byMethod).forEach(([method, value]) => {
+            content += `${method}: ${formatCurrency(value)}\n`;
+        });
+
+        return { title: "Vendas por Período", content };
+    };
+
+    const generateTicketMedio = async (startDate: string, endDate: string) => {
+        const { data: sales } = await supabase
+            .from('sales')
+            .select('total, customer_name')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate + 'T23:59:59');
+
+        const totalVendas = sales?.length || 0;
+        const faturamento = sales?.reduce((acc, s) => acc + Number(s.total), 0) || 0;
+        const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
+
+        // Agrupar por cliente
+        const byCustomer: Record<string, { count: number; total: number }> = {};
+        sales?.forEach(s => {
+            const customer = s.customer_name || 'Consumidor Final';
+            if (!byCustomer[customer]) byCustomer[customer] = { count: 0, total: 0 };
+            byCustomer[customer].count++;
+            byCustomer[customer].total += Number(s.total);
+        });
+
+        const topCustomers = Object.entries(byCustomer)
+            .sort((a, b) => b[1].total - a[1].total)
+            .slice(0, 5);
+
+        let content = `📅 Período: ${new Date(startDate).toLocaleDateString('pt-BR')} a ${new Date(endDate).toLocaleDateString('pt-BR')}\n\n`;
+        content += `📊 TICKET MÉDIO\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        content += `Total de Vendas: ${totalVendas}\n`;
+        content += `Faturamento Total: ${formatCurrency(faturamento)}\n`;
+        content += `Ticket Médio: ${formatCurrency(ticketMedio)}\n\n`;
+        content += `👥 TOP 5 CLIENTES\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        topCustomers.forEach(([name, data], i) => {
+            content += `${i + 1}. ${name}: ${data.count} compras - ${formatCurrency(data.total)}\n`;
+        });
+
+        return { title: "Ticket Médio", content };
+    };
+
+    const generateProdutosMaisVendidos = async (startDate: string, endDate: string) => {
+        const { data: sales } = await supabase
+            .from('sales')
+            .select('items')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate + 'T23:59:59');
+
+        // Agregar produtos
+        const products: Record<string, { name: string; quantity: number; total: number }> = {};
+        sales?.forEach(sale => {
+            const items = sale.items as { name: string; quantity: number; price: number }[];
+            items?.forEach(item => {
+                const key = item.name;
+                if (!products[key]) products[key] = { name: item.name, quantity: 0, total: 0 };
+                products[key].quantity += item.quantity;
+                products[key].total += item.quantity * item.price;
+            });
+        });
+
+        const topProducts = Object.values(products)
+            .sort((a, b) => b.quantity - a.quantity)
+            .slice(0, 15);
+
+        let content = `📅 Período: ${new Date(startDate).toLocaleDateString('pt-BR')} a ${new Date(endDate).toLocaleDateString('pt-BR')}\n\n`;
+        content += `🏆 PRODUTOS MAIS VENDIDOS\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        if (topProducts.length === 0) {
+            content += `Nenhuma venda no período.\n`;
+        } else {
+            topProducts.forEach((p, i) => {
+                content += `${i + 1}. ${p.name}\n`;
+                content += `   Qtd: ${p.quantity} | Total: ${formatCurrency(p.total)}\n`;
+            });
+        }
+
+        return { title: "Produtos Mais Vendidos", content };
+    };
+
+    const generateEstoqueBaixo = async () => {
+        const { data: products } = await supabase
+            .from('products')
+            .select('name, stock, category, price')
+            .lt('stock', 10)
+            .order('stock', { ascending: true })
+            .limit(30);
+
+        let content = `📅 Data: ${new Date().toLocaleDateString('pt-BR')}\n\n`;
+        content += `⚠️ PRODUTOS COM ESTOQUE BAIXO (< 10 un)\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+
+        if (!products || products.length === 0) {
+            content += `✅ Nenhum produto com estoque crítico!\n`;
+        } else {
+            content += `Total: ${products.length} produto(s)\n\n`;
+            products.forEach((p, i) => {
+                const status = p.stock === 0 ? '🔴 ZERADO' : p.stock < 5 ? '🟡 CRÍTICO' : '🟢 BAIXO';
+                content += `${i + 1}. ${p.name}\n`;
+                content += `   Estoque: ${p.stock} | ${status}\n`;
+            });
+        }
+
+        return { title: "Estoque Baixo", content };
+    };
+
+    const generateInventarioValorizado = async () => {
+        const { data: products } = await supabase
+            .from('products')
+            .select('name, stock, price, category');
+
+        const totalItems = products?.reduce((acc, p) => acc + Number(p.stock || 0), 0) || 0;
+        const totalValue = products?.reduce((acc, p) => acc + (Number(p.stock || 0) * Number(p.price || 0)), 0) || 0;
+
+        // Agrupar por categoria
+        const byCategory: Record<string, { count: number; value: number }> = {};
+        products?.forEach(p => {
+            const cat = p.category || 'Sem Categoria';
+            if (!byCategory[cat]) byCategory[cat] = { count: 0, value: 0 };
+            byCategory[cat].count += Number(p.stock || 0);
+            byCategory[cat].value += Number(p.stock || 0) * Number(p.price || 0);
+        });
+
+        let content = `📅 Data: ${new Date().toLocaleDateString('pt-BR')}\n\n`;
+        content += `📦 INVENTÁRIO VALORIZADO\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        content += `Total de Itens: ${totalItems.toLocaleString('pt-BR')}\n`;
+        content += `Valor Total (Venda): ${formatCurrency(totalValue)}\n\n`;
+        content += `📂 POR CATEGORIA\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        Object.entries(byCategory)
+            .sort((a, b) => b[1].value - a[1].value)
+            .forEach(([cat, data]) => {
+                content += `${cat}: ${data.count} itens - ${formatCurrency(data.value)}\n`;
+            });
+
+        return { title: "Inventário Valorizado", content };
+    };
+
+    const generateFluxoCaixa = async (startDate: string, endDate: string) => {
+        const { data: movements } = await supabase
+            .from('cash_movements')
+            .select('*')
+            .gte('created_at', startDate)
+            .lte('created_at', endDate + 'T23:59:59')
+            .order('created_at', { ascending: false });
+
+        const totals: Record<string, number> = {
+            opening: 0,
+            sale: 0,
+            suprimento: 0,
+            sangria: 0,
+            closing: 0,
+        };
+
+        movements?.forEach(m => {
+            totals[m.type] = (totals[m.type] || 0) + Number(m.amount);
+        });
+
+        const entradas = totals.opening + totals.sale + totals.suprimento;
+        const saidas = totals.sangria;
+        const saldo = entradas - saidas;
+
+        let content = `📅 Período: ${new Date(startDate).toLocaleDateString('pt-BR')} a ${new Date(endDate).toLocaleDateString('pt-BR')}\n\n`;
+        content += `💰 FLUXO DE CAIXA\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        content += `Movimentações: ${movements?.length || 0}\n\n`;
+        content += `📥 ENTRADAS\n`;
+        content += `  Aberturas: ${formatCurrency(totals.opening)}\n`;
+        content += `  Vendas: ${formatCurrency(totals.sale)}\n`;
+        content += `  Suprimentos: ${formatCurrency(totals.suprimento)}\n`;
+        content += `  Total: ${formatCurrency(entradas)}\n\n`;
+        content += `📤 SAÍDAS\n`;
+        content += `  Sangrias: ${formatCurrency(totals.sangria)}\n\n`;
+        content += `💵 SALDO: ${formatCurrency(saldo)}`;
+
+        return { title: "Fluxo de Caixa", content };
+    };
+
+    const generateContasReceber = async () => {
+        const { data: receivables } = await supabase
+            .from('receivables')
+            .select('*')
+            .order('due_date', { ascending: true });
+
+        const pendentes = receivables?.filter(r => r.status === 'Pendente') || [];
+        const recebidos = receivables?.filter(r => r.status === 'Recebido') || [];
+        const atrasados = receivables?.filter(r => r.status === 'Atrasado') || [];
+
+        const totalPendente = pendentes.reduce((acc, r) => acc + Number(r.value), 0);
+        const totalRecebido = recebidos.reduce((acc, r) => acc + Number(r.value), 0);
+        const totalAtrasado = atrasados.reduce((acc, r) => acc + Number(r.value), 0);
+
+        let content = `📅 Data: ${new Date().toLocaleDateString('pt-BR')}\n\n`;
+        content += `💳 CONTAS A RECEBER\n`;
+        content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        content += `🟡 Pendentes: ${pendentes.length} - ${formatCurrency(totalPendente)}\n`;
+        content += `🔴 Atrasados: ${atrasados.length} - ${formatCurrency(totalAtrasado)}\n`;
+        content += `🟢 Recebidos: ${recebidos.length} - ${formatCurrency(totalRecebido)}\n\n`;
+        content += `📋 Total Geral: ${formatCurrency(totalPendente + totalAtrasado + totalRecebido)}\n`;
+        content += `📋 A Receber: ${formatCurrency(totalPendente + totalAtrasado)}`;
+
+        return { title: "Contas a Receber", content };
+    };
+
+    const handleGenerateReport = async (title: string, hasDateFilter: boolean) => {
+        if (hasDateFilter) {
+            const today = new Date().toISOString().slice(0, 10);
+            const firstDay = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+            setDateFilter({ title, startDate: firstDay, endDate: today });
+            return;
+        }
+
         setGenerating(title);
-        // Simulate processing
-        setTimeout(() => {
-            setGenerating(null);
+        try {
+            let result: ReportResult | null = null;
 
-            // Generate mock content based on title
-            let content = "";
-            const date = new Date().toLocaleDateString();
-            if (title.includes("Vendas")) {
-                content = `Período: ${date}\nTotal de Vendas: 145\nFaturamento: R$ 23.450,00\nTicket Médio: R$ 161,72`;
-            } else if (title.includes("Estoque")) {
-                content = `Data do Inventário: ${date}\nItens em Estoque: 1.250\nItens Críticos: 15\nValor Total (Custo): R$ 45.000,00`;
-            } else if (title.includes("Financeiro")) {
-                content = `Competência: Dezembro/2025\nReceitas: R$ 56.000,00\nDespesas: R$ 32.000,00\nResultado Operacional: R$ 24.000,00`;
-            } else {
-                content = `Relatório gerado em: ${date}\nConteúdo simulado para fins de demonstração.\nTodos os indicadores estão positivos.`;
+            switch (title) {
+                case "Estoque Baixo":
+                    result = await generateEstoqueBaixo();
+                    break;
+                case "Inventário Valorizado":
+                    result = await generateInventarioValorizado();
+                    break;
+                case "Contas a Receber":
+                    result = await generateContasReceber();
+                    break;
             }
 
-            setReportPreview({ title, content });
-        }, 1500);
+            if (result) setReportPreview(result);
+        } catch (error) {
+            console.error('Error generating report:', error);
+            alert('Erro ao gerar relatório');
+        }
+        setGenerating(null);
+    };
+
+    const handleGenerateWithDates = async () => {
+        if (!dateFilter) return;
+        setGenerating(dateFilter.title);
+
+        try {
+            let result: ReportResult | null = null;
+
+            switch (dateFilter.title) {
+                case "Vendas por Período":
+                    result = await generateVendasPorPeriodo(dateFilter.startDate, dateFilter.endDate);
+                    break;
+                case "Ticket Médio":
+                    result = await generateTicketMedio(dateFilter.startDate, dateFilter.endDate);
+                    break;
+                case "Produtos Mais Vendidos":
+                    result = await generateProdutosMaisVendidos(dateFilter.startDate, dateFilter.endDate);
+                    break;
+                case "Fluxo de Caixa":
+                    result = await generateFluxoCaixa(dateFilter.startDate, dateFilter.endDate);
+                    break;
+            }
+
+            if (result) setReportPreview(result);
+        } catch (error) {
+            console.error('Error generating report:', error);
+            alert('Erro ao gerar relatório');
+        }
+
+        setGenerating(null);
+        setDateFilter(null);
     };
 
     const handlePrint = () => {
@@ -112,7 +403,7 @@ export default function ReportsPage() {
                                         <Button
                                             variant="ghost"
                                             className="w-full justify-start pl-0 group-hover:pl-2 transition-all"
-                                            onClick={() => handleGenerateReport(item.title)}
+                                            onClick={() => handleGenerateReport(item.title, item.hasDateFilter)}
                                             disabled={generating === item.title}
                                         >
                                             {generating === item.title ? (
@@ -121,7 +412,7 @@ export default function ReportsPage() {
                                                     Gerando...
                                                 </>
                                             ) : (
-                                                "Gerar Relatório \u2192"
+                                                "Gerar Relatório →"
                                             )}
                                         </Button>
                                     </CardFooter>
@@ -132,20 +423,59 @@ export default function ReportsPage() {
                 ))}
             </div>
 
-            {/* PREVIEW DIALOG */}
+            {/* Date Filter Dialog */}
+            <Dialog open={!!dateFilter} onOpenChange={(open) => !open && setDateFilter(null)}>
+                <DialogContent className="sm:max-w-[400px]">
+                    <DialogHeader>
+                        <DialogTitle>Selecionar Período</DialogTitle>
+                        <DialogDescription>
+                            Informe o período para o relatório: {dateFilter?.title}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="startDate">Data Inicial</Label>
+                            <Input
+                                id="startDate"
+                                type="date"
+                                value={dateFilter?.startDate || ''}
+                                onChange={(e) => setDateFilter(prev => prev ? { ...prev, startDate: e.target.value } : null)}
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="endDate">Data Final</Label>
+                            <Input
+                                id="endDate"
+                                type="date"
+                                value={dateFilter?.endDate || ''}
+                                onChange={(e) => setDateFilter(prev => prev ? { ...prev, endDate: e.target.value } : null)}
+                            />
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDateFilter(null)}>Cancelar</Button>
+                        <Button onClick={handleGenerateWithDates} disabled={!!generating}>
+                            {generating ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Gerar Relatório
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Report Preview Dialog */}
             <Dialog open={!!reportPreview} onOpenChange={(open) => !open && setReportPreview(null)}>
-                <DialogContent className="sm:max-w-[500px]">
+                <DialogContent className="sm:max-w-[550px]">
                     <DialogHeader>
                         <DialogTitle>Relatório Pronto</DialogTitle>
                         <DialogDescription>
                             O relatório <strong>{reportPreview?.title}</strong> foi gerado com sucesso.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="bg-muted p-4 rounded-md font-mono text-sm whitespace-pre-line">
+                    <div className="bg-muted p-4 rounded-md font-mono text-sm whitespace-pre-line max-h-[400px] overflow-y-auto">
                         {reportPreview?.content}
                     </div>
                     <DialogFooter className="flex gap-2 sm:justify-between">
-                        <div className="flex-1"></div> {/* Spacer */}
+                        <div className="flex-1"></div>
                         <Button variant="outline" onClick={() => setReportPreview(null)}>Fechar</Button>
                         <Button onClick={handlePrint} className="gap-2">
                             <Printer className="h-4 w-4" /> Imprimir

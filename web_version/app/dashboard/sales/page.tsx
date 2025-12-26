@@ -438,6 +438,19 @@ export default function SalesPage() {
     };
 
     const handlePrint = async () => {
+        // Check if cash register is open
+        const { data: openRegister } = await supabase
+            .from('cash_registers')
+            .select('id')
+            .eq('status', 'open')
+            .limit(1)
+            .single();
+
+        if (!openRegister) {
+            alert("⚠️ Nenhum caixa aberto!\n\nAbra o caixa em Financeiro → Caixa antes de registrar vendas.");
+            return;
+        }
+
         // Save sale to Supabase
         try {
             const saleData = {
@@ -460,12 +473,28 @@ export default function SalesPage() {
                 }))
             };
 
-            const { error } = await supabase.from('sales').insert(saleData);
+            const { data: saleResult, error } = await supabase
+                .from('sales')
+                .insert(saleData)
+                .select()
+                .single();
 
             if (error) {
                 console.error("Error saving sale:", error);
                 alert("Erro ao salvar venda: " + error.message);
+                return;
             }
+
+            // Register cash movement
+            await supabase.from('cash_movements').insert({
+                register_id: openRegister.id,
+                type: 'sale',
+                amount: getFinalTotal(),
+                description: `Venda - ${clientName || "Consumidor Final"}`,
+                payment_method: selectedPayment,
+                sale_id: saleResult?.id || null
+            });
+
         } catch (err) {
             console.error("Error:", err);
         }
@@ -607,7 +636,42 @@ export default function SalesPage() {
 
                         <Separator />
 
+                        {/* Lista de Produtos - aparece na impressão */}
                         <div className="space-y-2">
+                            <Label>Itens da Venda</Label>
+                            <div className="rounded-md border bg-slate-50 p-3 text-sm max-h-[200px] overflow-y-auto print:max-h-none print:overflow-visible">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b text-left text-xs text-muted-foreground">
+                                            <th className="pb-2">Produto</th>
+                                            <th className="pb-2 text-center">Qtd</th>
+                                            <th className="pb-2 text-right">Unit.</th>
+                                            <th className="pb-2 text-right">Total</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {cart.map((item, idx) => (
+                                            <tr key={idx} className="border-b last:border-0">
+                                                <td className="py-1.5">{item.name}</td>
+                                                <td className="py-1.5 text-center">{item.quantity}</td>
+                                                <td className="py-1.5 text-right">{formatCurrency(item.price)}</td>
+                                                <td className="py-1.5 text-right font-medium">{formatCurrency(item.price * item.quantity)}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                                {globalDiscount.value > 0 && (
+                                    <div className="flex justify-between mt-2 pt-2 border-t text-sm">
+                                        <span>Desconto:</span>
+                                        <span className="text-red-600">- {formatCurrency(globalDiscount.value)}</span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="no-print"><Separator /></div>
+
+                        <div className="space-y-2 no-print">
                             <Label>Forma de Pagamento</Label>
                             <div className="grid grid-cols-3 gap-2">
                                 {['Dinheiro', 'Cartão Crédito', 'Cartão Débito', 'PIX', 'Duplicata'].map((method) => (
@@ -625,8 +689,14 @@ export default function SalesPage() {
                             </div>
                         </div>
 
+                        {/* Forma de pagamento selecionada - aparece na impressão */}
+                        <div className="hidden print:block text-sm">
+                            <span className="font-medium">Forma de Pagamento: </span>
+                            <span className="capitalize">{selectedPayment}</span>
+                        </div>
+
                         {(selectedPayment === 'duplicata' || selectedPayment === 'cartão crédito') && (
-                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2">
+                            <div className="space-y-4 animate-in fade-in slide-in-from-top-2 no-print">
                                 <div className="space-y-2">
                                     <Label>Condição de Pagamento</Label>
                                     <Select value={paymentCondition} onValueChange={setPaymentCondition}>
@@ -668,7 +738,7 @@ export default function SalesPage() {
                         </div>
                     </div>
 
-                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                    <DialogFooter className="flex-col sm:flex-row gap-2 no-print">
                         <div className="flex gap-2 w-full sm:w-auto mr-auto">
                             <Button variant="outline" className="gap-2" onClick={handleBudget}>
                                 <FileText className="h-4 w-4" />

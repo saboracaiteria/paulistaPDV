@@ -17,7 +17,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Menu,
-    X
+    X,
+    Wallet
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ const sidebarItems = [
     { icon: Users, label: "Clientes", href: "/dashboard/customers" },
     { icon: Truck, label: "Fornecedores", href: "/dashboard/suppliers" },
     { icon: CreditCard, label: "Financeiro", href: "/dashboard/finance" },
+    { icon: Wallet, label: "Caixa", href: "/dashboard/finance/cashier" },
     { icon: DollarSign, label: "A Receber", href: "/dashboard/finance/receivables" },
     { icon: FileText, label: "Fiscal", href: "/dashboard/fiscal" },
     { icon: BarChart3, label: "Relatórios", href: "/dashboard/reports" },
