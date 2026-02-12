@@ -14,8 +14,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
-import { Printer, Save, Database, Shield, Store, Loader2, CheckCircle } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { Printer, Save, Database, Store, Loader2, CheckCircle } from "lucide-react";
+import { STORE_SETTINGS } from "@/lib/mock-data";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
     const [storeSettings, setStoreSettings] = useState({
@@ -28,27 +29,21 @@ export default function SettingsPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [saveSuccess, setSaveSuccess] = useState(false);
-    const [settingsId, setSettingsId] = useState<number | null>(null);
 
     useEffect(() => {
         const fetchSettings = async () => {
             setLoading(true);
-            const { data, error } = await supabase
-                .from("store_settings")
-                .select("*")
-                .limit(1)
-                .single();
+            // Simulate network delay
+            await new Promise(resolve => setTimeout(resolve, 600));
 
-            if (data && !error) {
-                setSettingsId(data.id);
-                setStoreSettings({
-                    storeName: data.store_name || "",
-                    legalName: data.legal_name || "",
-                    cnpj: data.cnpj || "",
-                    ie: data.ie || "",
-                    address: data.address || ""
-                });
-            }
+            setStoreSettings({
+                storeName: STORE_SETTINGS.storeName,
+                legalName: STORE_SETTINGS.legalName,
+                cnpj: STORE_SETTINGS.cnpj,
+                ie: STORE_SETTINGS.ie,
+                address: STORE_SETTINGS.address
+            });
+
             setLoading(false);
         };
         fetchSettings();
@@ -65,43 +60,14 @@ export default function SettingsPage() {
         setSaving(true);
         setSaveSuccess(false);
 
-        const payload = {
-            store_name: storeSettings.storeName,
-            legal_name: storeSettings.legalName,
-            cnpj: storeSettings.cnpj,
-            ie: storeSettings.ie,
-            address: storeSettings.address,
-            updated_at: new Date().toISOString()
-        };
-
-        let error;
-        if (settingsId) {
-            // Atualizar registro existente
-            const result = await supabase
-                .from("store_settings")
-                .update(payload)
-                .eq("id", settingsId);
-            error = result.error;
-        } else {
-            // Inserir novo registro
-            const result = await supabase
-                .from("store_settings")
-                .insert(payload)
-                .select()
-                .single();
-            if (result.data) {
-                setSettingsId(result.data.id);
-            }
-            error = result.error;
-        }
+        // Simulate network request
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         setSaving(false);
-        if (error) {
-            alert("Erro ao salvar configurações: " + error.message);
-        } else {
-            setSaveSuccess(true);
-            setTimeout(() => setSaveSuccess(false), 3000);
-        }
+        setSaveSuccess(true);
+        toast.success("Configurações salvas com sucesso (Simulação)!");
+
+        setTimeout(() => setSaveSuccess(false), 3000);
     };
 
     return (
@@ -135,56 +101,62 @@ export default function SettingsPage() {
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="grid gap-4 md:grid-cols-2">
-                                <div className="space-y-2">
-                                    <Label htmlFor="storeName">Nome Fantasia</Label>
-                                    <Input
-                                        id="storeName"
-                                        name="storeName"
-                                        value={storeSettings.storeName}
-                                        onChange={handleChange}
-                                    />
+                            {loading ? (
+                                <div className="flex justify-center py-8">
+                                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="legalName">Razão Social</Label>
-                                    <Input
-                                        id="legalName"
-                                        name="legalName"
-                                        value={storeSettings.legalName}
-                                        onChange={handleChange}
-                                    />
+                            ) : (
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="space-y-2">
+                                        <Label htmlFor="storeName">Nome Fantasia</Label>
+                                        <Input
+                                            id="storeName"
+                                            name="storeName"
+                                            value={storeSettings.storeName}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="legalName">Razão Social</Label>
+                                        <Input
+                                            id="legalName"
+                                            name="legalName"
+                                            value={storeSettings.legalName}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="cnpj">CNPJ</Label>
+                                        <Input
+                                            id="cnpj"
+                                            name="cnpj"
+                                            value={storeSettings.cnpj}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label htmlFor="ie">Inscrição Estadual</Label>
+                                        <Input
+                                            id="ie"
+                                            name="ie"
+                                            value={storeSettings.ie}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
+                                    <div className="col-span-2 space-y-2">
+                                        <Label htmlFor="address">Endereço Completo</Label>
+                                        <Input
+                                            id="address"
+                                            name="address"
+                                            value={storeSettings.address}
+                                            onChange={handleChange}
+                                        />
+                                    </div>
                                 </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="cnpj">CNPJ</Label>
-                                    <Input
-                                        id="cnpj"
-                                        name="cnpj"
-                                        value={storeSettings.cnpj}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="ie">Inscrição Estadual</Label>
-                                    <Input
-                                        id="ie"
-                                        name="ie"
-                                        value={storeSettings.ie}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                                <div className="col-span-2 space-y-2">
-                                    <Label htmlFor="address">Endereço Completo</Label>
-                                    <Input
-                                        id="address"
-                                        name="address"
-                                        value={storeSettings.address}
-                                        onChange={handleChange}
-                                    />
-                                </div>
-                            </div>
+                            )}
                         </CardContent>
                         <CardFooter className="justify-end">
-                            <Button className="gap-2" onClick={handleSave} disabled={saving}>
+                            <Button className="gap-2" onClick={handleSave} disabled={saving || loading}>
                                 {saving ? (
                                     <><Loader2 className="h-4 w-4 animate-spin" /> Salvando...</>
                                 ) : saveSuccess ? (
@@ -229,7 +201,7 @@ export default function SettingsPage() {
                             </div>
                         </CardContent>
                         <CardFooter className="justify-end">
-                            <Button>Testar Impressão</Button>
+                            <Button variant="outline">Testar Impressão</Button>
                         </CardFooter>
                     </Card>
                 </TabsContent>
@@ -239,7 +211,7 @@ export default function SettingsPage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Database className="h-5 w-5" />
-                                Backup e Restauração
+                                Backup e Dados
                             </CardTitle>
                             <CardDescription>
                                 Mantenha seus dados seguros.
@@ -250,23 +222,40 @@ export default function SettingsPage() {
                                 <div className="space-y-0.5">
                                     <div className="font-medium">Backup Automático</div>
                                     <div className="text-sm text-muted-foreground">
-                                        Realizado diariamente às 03:00
+                                        Indisponível na versão demo estática.
                                     </div>
                                 </div>
-                                <Button variant="outline">Configurar</Button>
+                                <Button variant="outline" disabled>Configurar</Button>
                             </div>
                             <Separator />
                             <div className="space-y-4">
                                 <h4 className="text-sm font-medium">Backup Manual</h4>
                                 <div className="flex gap-4">
-                                    <Button className="w-full sm:w-auto">
+                                    <Button className="w-full sm:w-auto" disabled>
                                         Fazer Backup Agora
                                     </Button>
-                                    <Button variant="outline" className="w-full sm:w-auto">
+                                    <Button variant="outline" className="w-full sm:w-auto" disabled>
                                         Restaurar Backup
                                     </Button>
                                 </div>
+                                <p className="text-xs text-muted-foreground bg-yellow-50 p-2 rounded text-yellow-800 border border-yellow-200">
+                                    Nota: Na versão demo estática, os dados não persistem entre sessões e backups não estão disponíveis.
+                                </p>
                             </div>
+                        </CardContent>
+                    </Card>
+                </TabsContent>
+
+                <TabsContent value="users" className="space-y-4">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle>Usuários e Permissões</CardTitle>
+                            <CardDescription>
+                                Gerencie quem tem acesso ao sistema.
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            <p className="text-muted-foreground">Funcionalidade indisponível na versão demo.</p>
                         </CardContent>
                     </Card>
                 </TabsContent>

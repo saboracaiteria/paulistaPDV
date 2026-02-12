@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { parseImportFile, Supplier } from "@/lib/universal-parser";
 import { ImportReviewDialog } from "@/components/import-review-dialog";
-import { supabase } from "@/lib/supabase";
 
 interface SupplierData {
     id: number;
@@ -26,9 +25,14 @@ interface SupplierData {
     category: string;
 }
 
+const MOCK_SUPPLIERS: SupplierData[] = [
+    { id: 1, name: "Fornecedor Exemplo Ltda", contact: "João", email: "contato@exemplo.com", phone: "(11) 99999-9999", category: "Geral" },
+    { id: 2, name: "Distribuidora Paulista", contact: "Maria", email: "vendas@paulista.com", phone: "(11) 88888-8888", category: "Bebidas" },
+];
+
 export default function SuppliersPage() {
-    const [suppliers, setSuppliers] = useState<SupplierData[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [suppliers, setSuppliers] = useState<SupplierData[]>(MOCK_SUPPLIERS);
+    const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [currentSupplier, setCurrentSupplier] = useState<SupplierData | null>(null);
@@ -47,26 +51,6 @@ export default function SuppliersPage() {
         phone: "",
         category: ""
     });
-
-    // Fetch suppliers from Supabase
-    const fetchSuppliers = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from("suppliers")
-            .select("*")
-            .order("name");
-
-        if (data && !error) {
-            setSuppliers(data as SupplierData[]);
-        } else if (error) {
-            console.error("Error fetching suppliers:", error);
-        }
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        fetchSuppliers();
-    }, []);
 
     // Smart search - supports multiple words
     const filteredSuppliers = suppliers.filter(s => {
@@ -103,43 +87,31 @@ export default function SuppliersPage() {
 
     const handleSave = async () => {
         setSaving(true);
+        // Simulate specific delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         const payload = {
             name: formData.name,
-            contact: formData.contact || null,
-            email: formData.email || null,
-            phone: formData.phone || null,
-            category: formData.category || null
+            contact: formData.contact || "",
+            email: formData.email || "",
+            phone: formData.phone || "",
+            category: formData.category || ""
         };
 
-        let error;
         if (currentSupplier) {
-            const result = await supabase
-                .from("suppliers")
-                .update(payload)
-                .eq("id", currentSupplier.id);
-            error = result.error;
+            setSuppliers(prev => prev.map(s => s.id === currentSupplier.id ? { ...s, ...payload } : s));
         } else {
-            const result = await supabase.from("suppliers").insert(payload);
-            error = result.error;
+            const newId = Math.max(...suppliers.map(s => s.id), 0) + 1;
+            setSuppliers(prev => [...prev, { id: newId, ...payload }]);
         }
 
         setSaving(false);
-        if (error) {
-            alert("Erro ao salvar fornecedor: " + error.message);
-        } else {
-            setIsDialogOpen(false);
-            fetchSuppliers();
-        }
+        setIsDialogOpen(false);
     };
 
     const handleDelete = async (id: number) => {
         if (confirm("Tem certeza que deseja excluir este fornecedor?")) {
-            const { error } = await supabase.from("suppliers").delete().eq("id", id);
-            if (error) {
-                alert("Erro ao excluir: " + error.message);
-            } else {
-                fetchSuppliers();
-            }
+            setSuppliers(prev => prev.filter(s => s.id !== id));
         }
     };
 
@@ -183,40 +155,34 @@ export default function SuppliersPage() {
 
     const confirmImport = async () => {
         // Insert new items
-        if (importSummary.newItems.length > 0) {
-            const newPayload = importSummary.newItems.map(item => ({
-                name: item.name,
-                contact: item.contact || null,
-                email: item.email || null,
-                phone: item.phone || null,
-                category: item.category || null
-            }));
-            const { error } = await supabase.from("suppliers").insert(newPayload);
-            if (error) {
-                alert("Erro ao inserir fornecedores: " + error.message);
-                return;
-            }
-        }
+        let nextId = Math.max(...suppliers.map(s => s.id), 0) + 1;
+        const newSuppliers = importSummary.newItems.map(item => ({
+            id: nextId++,
+            name: item.name,
+            contact: item.contact || "",
+            email: item.email || "",
+            phone: item.phone || "",
+            category: item.category || ""
+        }));
 
-        // Update existing items
-        for (const update of importSummary.updatedItems) {
-            const { error } = await supabase
-                .from("suppliers")
-                .update({
+        const updatedSuppliers = [...suppliers];
+        // Apply updates
+        importSummary.updatedItems.forEach(update => {
+            const idx = updatedSuppliers.findIndex(s => s.id === update.id);
+            if (idx >= 0) {
+                updatedSuppliers[idx] = {
+                    ...updatedSuppliers[idx],
                     name: update.name,
-                    contact: update.contact || null,
-                    email: update.email || null,
-                    phone: update.phone || null,
-                    category: update.category || null
-                })
-                .eq("id", update.id);
-            if (error) {
-                console.error("Erro ao atualizar fornecedor:", error);
+                    contact: update.contact || updatedSuppliers[idx].contact,
+                    email: update.email || updatedSuppliers[idx].email,
+                    phone: update.phone || updatedSuppliers[idx].phone,
+                    category: update.category || updatedSuppliers[idx].category
+                };
             }
-        }
+        });
 
+        setSuppliers([...updatedSuppliers, ...newSuppliers]);
         setReviewOpen(false);
-        fetchSuppliers();
         alert("Importação de Fornecedores concluída!");
     };
 

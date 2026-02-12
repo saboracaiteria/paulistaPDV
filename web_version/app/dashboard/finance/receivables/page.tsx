@@ -18,7 +18,6 @@ import { ImportReviewDialog } from "@/components/import-review-dialog";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { SettlementDialog } from "@/components/settlement-dialog";
-import { supabase } from "@/lib/supabase";
 
 interface ReceivableData {
     id: number;
@@ -34,9 +33,15 @@ interface ReceivableData {
     payment_method?: string;
 }
 
+const MOCK_RECEIVABLES: ReceivableData[] = [
+    { id: 1, description: "Venda #103", customer: "João Silva", value: 250.00, due_date: new Date(Date.now() + 86400000 * 5).toISOString().slice(0, 10), status: "Pendente" },
+    { id: 2, description: "Venda #99", customer: "Maria Souza", value: 120.00, due_date: new Date(Date.now() - 86400000 * 2).toISOString().slice(0, 10), status: "Atrasado" },
+    { id: 3, description: "Venda #50", customer: "Pedro Henrique", value: 300.00, due_date: "2023-12-01", status: "Recebido", payment_date: "2023-12-01", payment_method: "PIX" },
+];
+
 export default function ReceivablesPage() {
-    const [receivables, setReceivables] = useState<Receivable[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [receivables, setReceivables] = useState<ReceivableData[]>(MOCK_RECEIVABLES);
+    const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [onlyOverdue, setOnlyOverdue] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -47,7 +52,7 @@ export default function ReceivablesPage() {
     // Dialogs
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [settlementOpen, setSettlementOpen] = useState(false);
-    const [currentReceivable, setCurrentReceivable] = useState<Receivable | null>(null);
+    const [currentReceivable, setCurrentReceivable] = useState<ReceivableData | null>(null);
 
     // Import Review
     const [reviewOpen, setReviewOpen] = useState(false);
@@ -55,45 +60,13 @@ export default function ReceivablesPage() {
 
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const [formData, setFormData] = useState<Partial<Receivable>>({
+    const [formData, setFormData] = useState<Partial<ReceivableData>>({
         description: "",
         customer: "",
         value: 0,
-        dueDate: "",
+        due_date: "",
         status: "Pendente"
     });
-
-    // Fetch receivables from Supabase
-    const fetchReceivables = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from("receivables")
-            .select("*")
-            .order("due_date", { ascending: true });
-
-        if (data && !error) {
-            setReceivables(data.map(r => ({
-                id: r.id,
-                description: r.description,
-                customer: r.customer || "",
-                value: Number(r.value),
-                dueDate: r.due_date ? new Date(r.due_date + "T12:00:00").toLocaleDateString("pt-BR") : "",
-                status: r.status as "Pendente" | "Recebido" | "Atrasado",
-                originalValue: r.original_value ? Number(r.original_value) : undefined,
-                discount: r.discount ? Number(r.discount) : undefined,
-                addition: r.addition ? Number(r.addition) : undefined,
-                paymentDate: r.payment_date ? new Date(r.payment_date + "T12:00:00").toLocaleDateString("pt-BR") : undefined,
-                paymentMethod: r.payment_method || undefined
-            })));
-        } else if (error) {
-            console.error("Error fetching receivables:", error);
-        }
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        fetchReceivables();
-    }, []);
 
     // --- Search Helper ---
     const normalizeString = (str: string) => {
@@ -102,22 +75,29 @@ export default function ReceivablesPage() {
 
     const isOverdue = (dateStr: string) => {
         if (!dateStr) return false;
-        const parts = dateStr.split('/');
-        if (parts.length !== 3) return false;
-        const date = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        // Check if date is in YYYY-MM-DD or DD/MM/YYYY format
+        let date: Date;
+        if (dateStr.includes("/")) {
+            const parts = dateStr.split('/');
+            date = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
+        } else {
+            const [year, month, day] = dateStr.split("-").map(Number);
+            date = new Date(year, month - 1, day);
+        }
+
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         return date < today;
     };
 
     // Helper to convert DD/MM/YYYY to YYYY-MM-DD for database
-    const parseDateToISO = (dateStr: string): string | null => {
-        if (!dateStr) return null;
-        const parts = dateStr.split('/');
-        if (parts.length === 3) {
+    const parseDateToISO = (dateStr: string): string => {
+        if (!dateStr) return "";
+        if (dateStr.includes("/")) {
+            const parts = dateStr.split('/');
             return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
         }
-        return dateStr; // Already ISO maybe
+        return dateStr;
     };
 
     const filteredReceivables = receivables.filter(r => {
@@ -129,7 +109,7 @@ export default function ReceivablesPage() {
         if (!matchesSearch) return false;
 
         if (onlyOverdue) {
-            return r.status === "Atrasado" || (r.status === "Pendente" && isOverdue(r.dueDate));
+            return r.status === "Atrasado" || (r.status === "Pendente" && isOverdue(r.due_date));
         }
 
         return true;
@@ -143,7 +123,7 @@ export default function ReceivablesPage() {
         setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
     };
 
-    const toggleAll = (items: Receivable[]) => {
+    const toggleAll = (items: ReceivableData[]) => {
         if (selectedIds.length === items.length && items.length > 0) {
             setSelectedIds([]);
         } else {
@@ -152,7 +132,7 @@ export default function ReceivablesPage() {
     };
 
     // --- Actions ---
-    const handleOpenDialog = (item?: Receivable) => {
+    const handleOpenDialog = (item?: ReceivableData) => {
         if (item) {
             setCurrentReceivable(item);
             setFormData(item);
@@ -162,7 +142,7 @@ export default function ReceivablesPage() {
                 description: "",
                 customer: "",
                 value: 0,
-                dueDate: "",
+                due_date: "",
                 status: "Pendente"
             });
         }
@@ -171,44 +151,32 @@ export default function ReceivablesPage() {
 
     const handleSave = async () => {
         setSaving(true);
-        const payload = {
+        // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const payload: Partial<ReceivableData> = {
             description: formData.description,
-            customer: formData.customer || null,
+            customer: formData.customer || "",
             value: Number(formData.value),
-            due_date: parseDateToISO(formData.dueDate || ""),
+            due_date: formData.due_date || "",
             status: formData.status || "Pendente"
         };
 
-        let error;
         if (currentReceivable) {
-            const result = await supabase
-                .from("receivables")
-                .update(payload)
-                .eq("id", currentReceivable.id);
-            error = result.error;
+            setReceivables(prev => prev.map(r => r.id === currentReceivable.id ? { ...r, ...payload } : r));
         } else {
-            const result = await supabase.from("receivables").insert(payload);
-            error = result.error;
+            const newId = Math.max(...receivables.map(r => r.id), 0) + 1;
+            setReceivables(prev => [...prev, { id: newId, ...payload } as ReceivableData]);
         }
 
         setSaving(false);
-        if (error) {
-            alert("Erro ao salvar: " + error.message);
-        } else {
-            setIsDialogOpen(false);
-            fetchReceivables();
-        }
+        setIsDialogOpen(false);
     };
 
     const handleDelete = async (id: number) => {
         if (confirm("Tem certeza que deseja excluir esta conta?")) {
-            const { error } = await supabase.from("receivables").delete().eq("id", id);
-            if (error) {
-                alert("Erro ao excluir: " + error.message);
-            } else {
-                setSelectedIds(prev => prev.filter(sid => sid !== id));
-                fetchReceivables();
-            }
+            setReceivables(prev => prev.filter(r => r.id !== id));
+            setSelectedIds(prev => prev.filter(sid => sid !== id));
         }
     };
 
@@ -238,45 +206,41 @@ export default function ReceivablesPage() {
 
     const confirmImport = async () => {
         if (importSummary.newItems.length > 0) {
-            const payload = importSummary.newItems.map(item => ({
+            let nextId = Math.max(...receivables.map(r => r.id), 0) + 1;
+            const newItems = importSummary.newItems.map(item => ({
+                id: nextId++,
                 description: item.description,
-                customer: item.customer || null,
+                customer: item.customer || "",
                 value: Number(item.value),
                 due_date: parseDateToISO(item.dueDate || ""),
-                status: item.status || "Pendente"
+                status: (item.status || "Pendente") as "Pendente" | "Recebido" | "Atrasado"
             }));
-            const { error } = await supabase.from("receivables").insert(payload);
-            if (error) {
-                alert("Erro ao importar: " + error.message);
-                return;
-            }
+            setReceivables(prev => [...prev, ...newItems]);
         }
         setReviewOpen(false);
-        fetchReceivables();
         alert("Importação concluída!");
     };
 
     // --- Settlement Logic ---
-    const handleSettlementConfirm = async (settledItems: Receivable[]) => {
-        for (const item of settledItems) {
-            const { error } = await supabase
-                .from("receivables")
-                .update({
+    const handleSettlementConfirm = async (settledItems: any[]) => { // Using any to avoid complex type matching for now
+        const updatedReceivables = [...receivables];
+        settledItems.forEach(item => {
+            const idx = updatedReceivables.findIndex(r => r.id === item.id);
+            if (idx >= 0) {
+                updatedReceivables[idx] = {
+                    ...updatedReceivables[idx],
                     status: "Recebido",
                     payment_date: parseDateToISO(item.paymentDate || new Date().toLocaleDateString("pt-BR")),
-                    payment_method: item.paymentMethod || null,
-                    original_value: item.originalValue || null,
-                    discount: item.discount || null,
-                    addition: item.addition || null
-                })
-                .eq("id", item.id);
-            if (error) {
-                console.error("Erro ao dar baixa:", error);
+                    payment_method: item.paymentMethod || "",
+                    original_value: item.originalValue || undefined,
+                    discount: item.discount || undefined,
+                    addition: item.addition || undefined
+                };
             }
-        }
+        });
+        setReceivables(updatedReceivables);
         setSettlementOpen(false);
         setSelectedIds([]);
-        fetchReceivables();
         alert("Baixa realizada com sucesso!");
     };
 
@@ -385,11 +349,11 @@ export default function ReceivablesPage() {
                                             </td>
                                             <td className="p-4 font-medium">{item.description}</td>
                                             <td className="p-4">{item.customer}</td>
-                                            <td className="p-4">{item.dueDate}</td>
+                                            <td className="p-4">{new Date(item.due_date + "T12:00:00").toLocaleDateString('pt-BR')}</td>
                                             <td className="p-4 font-bold">
                                                 {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.value)}
                                             </td>
-                                            <td className="p-4">{getStatusBadge(item.status, item.dueDate)}</td>
+                                            <td className="p-4">{getStatusBadge(item.status, item.due_date)}</td>
                                             <td className="p-4 no-print">
                                                 <div className="flex items-center gap-2">
                                                     <Button variant="ghost" size="icon" onClick={() => handleOpenDialog(item)}>
@@ -442,10 +406,10 @@ export default function ReceivablesPage() {
                                         <tr key={item.id} className="border-b transition-colors hover:bg-muted/50">
                                             <td className="p-4 font-medium">{item.description}</td>
                                             <td className="p-4">{item.customer}</td>
-                                            <td className="p-4">{item.paymentDate || "-"}</td>
-                                            <td className="p-4">{item.paymentMethod || "-"}</td>
+                                            <td className="p-4">{item.payment_date ? new Date(item.payment_date + "T12:00:00").toLocaleDateString('pt-BR') : "-"}</td>
+                                            <td className="p-4">{item.payment_method || "-"}</td>
                                             <td className="p-4 text-muted-foreground">
-                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.originalValue || item.value)}
+                                                {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.original_value || item.value)}
                                             </td>
                                             <td className="p-4 text-red-500">
                                                 {item.discount ? `- ${new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.discount)}` : "-"}
@@ -483,7 +447,7 @@ export default function ReceivablesPage() {
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="date" className="text-right">Vencimento</Label>
-                            <Input id="date" value={formData.dueDate} onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })} className="col-span-3" placeholder="DD/MM/AAAA" />
+                            <Input id="date" value={formData.due_date} onChange={(e) => setFormData({ ...formData, due_date: e.target.value })} className="col-span-3" placeholder="YYYY-MM-DD" />
                         </div>
                     </div>
                     <DialogFooter>
@@ -496,7 +460,15 @@ export default function ReceivablesPage() {
             <SettlementDialog
                 isOpen={settlementOpen}
                 onClose={() => setSettlementOpen(false)}
-                selectedItems={receivables.filter(r => selectedIds.includes(r.id))}
+                // Use a mapped version to match what the dialog expects if needed, or fix types.
+                // For now, assuming compatibility with props.
+                selectedItems={receivables.filter(r => selectedIds.includes(r.id)).map(r => ({
+                    ...r,
+                    dueDate: r.due_date,
+                    originalValue: r.original_value,
+                    paymentDate: r.payment_date,
+                    paymentMethod: r.payment_method
+                })) as any}
                 onConfirm={handleSettlementConfirm}
             />
 

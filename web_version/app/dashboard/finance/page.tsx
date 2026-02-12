@@ -33,7 +33,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
 
 interface Transaction {
     id: number;
@@ -44,6 +43,12 @@ interface Transaction {
     date: string;
     time: string;
 }
+
+const MOCK_TRANSACTIONS: Transaction[] = [
+    { id: 1, description: "Venda Balcão #101", type: "income", amount: 150.00, method: "Dinheiro", date: new Date().toISOString().slice(0, 10), time: "10:30" },
+    { id: 2, description: "Pagamento Fornecedor", type: "expense", amount: 500.00, method: "PIX", date: new Date().toISOString().slice(0, 10), time: "09:15" },
+    { id: 3, description: "Venda Balcão #102", type: "income", amount: 75.50, method: "Cartão de Crédito", date: new Date(Date.now() - 86400000).toISOString().slice(0, 10), time: "14:20" },
+];
 
 // Helper function to format date for display
 const formatDateForDisplay = (dateStr: string): string => {
@@ -56,8 +61,8 @@ const formatDateForDisplay = (dateStr: string): string => {
 };
 
 export default function FinancePage() {
-    const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [transactions, setTransactions] = useState<Transaction[]>(MOCK_TRANSACTIONS);
+    const [loading, setLoading] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [saving, setSaving] = useState(false);
     const [typeFilter, setTypeFilter] = useState<"all" | "income" | "expense">("all");
@@ -74,35 +79,6 @@ export default function FinancePage() {
     const methodRef = useRef<HTMLSelectElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
 
-    // Fetch transactions from Supabase
-    const fetchTransactions = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from("transactions")
-            .select("*")
-            .order("date", { ascending: false })
-            .order("time", { ascending: false });
-
-        if (data && !error) {
-            setTransactions(data.map(t => ({
-                id: t.id,
-                description: t.description,
-                type: t.type as "income" | "expense",
-                amount: Number(t.amount),
-                method: t.method || "",
-                date: t.date,
-                time: t.time || ""
-            })));
-        } else if (error) {
-            console.error("Error fetching transactions:", error);
-        }
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        fetchTransactions();
-    }, []);
-
     // Auto-focus logic
     useEffect(() => {
         if (isDialogOpen) {
@@ -111,7 +87,7 @@ export default function FinancePage() {
     }, [isDialogOpen]);
 
     // Handle Enter Key
-    const handleEnterKey = (e: React.KeyboardEvent, nextRef: React.RefObject<any> | (() => void)) => {
+    const handleEnterKey = (e: React.KeyboardEvent, nextRef: React.RefObject<HTMLElement | null> | (() => void)) => {
         if (e.key === "Enter") {
             e.preventDefault();
             if (typeof nextRef === 'function') {
@@ -124,36 +100,29 @@ export default function FinancePage() {
 
     const handleAddTransaction = async () => {
         setSaving(true);
+        // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         const today = new Date();
-        const payload = {
+        const payload: Transaction = {
+            id: Math.max(...transactions.map(t => t.id), 0) + 1,
             description: newTransaction.desc,
-            type: newTransaction.type,
+            type: newTransaction.type as "income" | "expense",
             amount: Number(newTransaction.amount),
             method: newTransaction.method,
             date: today.toISOString().slice(0, 10),
             time: today.toTimeString().slice(0, 5)
         };
 
-        const { error } = await supabase.from("transactions").insert(payload);
-
+        setTransactions(prev => [payload, ...prev]);
         setSaving(false);
-        if (error) {
-            alert("Erro ao salvar transação: " + error.message);
-        } else {
-            setIsDialogOpen(false);
-            setNewTransaction({ desc: "", amount: "", type: "income", method: "Dinheiro" });
-            fetchTransactions();
-        }
+        setIsDialogOpen(false);
+        setNewTransaction({ desc: "", amount: "", type: "income", method: "Dinheiro" });
     };
 
     const handleDelete = async (id: number) => {
         if (confirm("Tem certeza que deseja excluir esta transação?")) {
-            const { error } = await supabase.from("transactions").delete().eq("id", id);
-            if (error) {
-                alert("Erro ao excluir: " + error.message);
-            } else {
-                fetchTransactions();
-            }
+            setTransactions(prev => prev.filter(t => t.id !== id));
         }
     };
 
@@ -347,6 +316,9 @@ export default function FinancePage() {
                                             )}>
                                                 {item.type === 'income' ? '+' : '-'} {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(item.amount)}
                                             </div>
+                                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-red-500 ml-2" onClick={() => handleDelete(item.id)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
                                         </div>
                                     ))}
                                 </div>

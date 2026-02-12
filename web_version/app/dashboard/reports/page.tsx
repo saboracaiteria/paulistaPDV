@@ -20,8 +20,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { BarChart3, TrendingUp, Package, Users, Receipt, CalendarRange, Loader2, Printer, Wallet, Download } from "lucide-react";
-import { supabase } from "@/lib/supabase";
+import { TrendingUp, Package, Receipt, CalendarRange, Loader2, Printer, Wallet, Download } from "lucide-react";
+import { MOCK_SALES, MOCK_MOVEMENTS, MOCK_RECEIVABLES, Sale } from "@/lib/mock-data";
+import { PRODUCTS_DATA } from "@/lib/products-data";
 
 interface ReportResult {
     title: string;
@@ -64,20 +65,26 @@ export default function ReportsPage() {
     };
 
     const generateVendasPorPeriodo = async (startDate: string, endDate: string) => {
-        const { data: sales } = await supabase
-            .from('sales')
-            .select('*')
-            .gte('created_at', startDate)
-            .lte('created_at', endDate + 'T23:59:59')
-            .order('created_at', { ascending: false });
+        // Simular delay
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        const totalVendas = sales?.length || 0;
-        const faturamento = sales?.reduce((acc, s) => acc + Number(s.total), 0) || 0;
-        const descontos = sales?.reduce((acc, s) => acc + Number(s.discount || 0), 0) || 0;
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const sales = MOCK_SALES.filter(s => {
+            const date = new Date(s.created_at);
+            return date >= start && date <= end;
+        });
+
+        const totalVendas = sales.length;
+        const faturamento = sales.reduce((acc, s) => acc + Number(s.total), 0);
+        const descontos = sales.reduce((acc, s) => acc + Number(s.discount || 0), 0);
 
         // Agrupar por método de pagamento
         const byMethod: Record<string, number> = {};
-        sales?.forEach(s => {
+        sales.forEach(s => {
             const method = s.payment_method || 'Não informado';
             byMethod[method] = (byMethod[method] || 0) + Number(s.total);
         });
@@ -99,19 +106,25 @@ export default function ReportsPage() {
     };
 
     const generateTicketMedio = async (startDate: string, endDate: string) => {
-        const { data: sales } = await supabase
-            .from('sales')
-            .select('total, customer_name')
-            .gte('created_at', startDate)
-            .lte('created_at', endDate + 'T23:59:59');
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        const totalVendas = sales?.length || 0;
-        const faturamento = sales?.reduce((acc, s) => acc + Number(s.total), 0) || 0;
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const sales = MOCK_SALES.filter(s => {
+            const date = new Date(s.created_at);
+            return date >= start && date <= end;
+        });
+
+        const totalVendas = sales.length;
+        const faturamento = sales.reduce((acc, s) => acc + Number(s.total), 0);
         const ticketMedio = totalVendas > 0 ? faturamento / totalVendas : 0;
 
         // Agrupar por cliente
         const byCustomer: Record<string, { count: number; total: number }> = {};
-        sales?.forEach(s => {
+        sales.forEach(s => {
             const customer = s.customer_name || 'Consumidor Final';
             if (!byCustomer[customer]) byCustomer[customer] = { count: 0, total: 0 };
             byCustomer[customer].count++;
@@ -138,17 +151,23 @@ export default function ReportsPage() {
     };
 
     const generateProdutosMaisVendidos = async (startDate: string, endDate: string) => {
-        const { data: sales } = await supabase
-            .from('sales')
-            .select('items')
-            .gte('created_at', startDate)
-            .lte('created_at', endDate + 'T23:59:59');
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const sales = MOCK_SALES.filter(s => {
+            const date = new Date(s.created_at);
+            return date >= start && date <= end;
+        });
 
         // Agregar produtos
         const products: Record<string, { name: string; quantity: number; total: number }> = {};
-        sales?.forEach(sale => {
-            const items = sale.items as { name: string; quantity: number; price: number }[];
-            items?.forEach(item => {
+        sales.forEach(sale => {
+            const items = sale.items || [];
+            items.forEach(item => {
                 const key = item.name;
                 if (!products[key]) products[key] = { name: item.name, quantity: 0, total: 0 };
                 products[key].quantity += item.quantity;
@@ -176,18 +195,18 @@ export default function ReportsPage() {
     };
 
     const generateEstoqueBaixo = async () => {
-        const { data: products } = await supabase
-            .from('products')
-            .select('name, stock, category, price')
-            .lt('stock', 10)
-            .order('stock', { ascending: true })
-            .limit(30);
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const products = PRODUCTS_DATA
+            .filter(p => p.stock < 10)
+            .sort((a, b) => a.stock - b.stock)
+            .slice(0, 30);
 
         let content = `📅 Data: ${new Date().toLocaleDateString('pt-BR')}\n\n`;
         content += `⚠️ PRODUTOS COM ESTOQUE BAIXO (< 10 un)\n`;
         content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
 
-        if (!products || products.length === 0) {
+        if (products.length === 0) {
             content += `✅ Nenhum produto com estoque crítico!\n`;
         } else {
             content += `Total: ${products.length} produto(s)\n\n`;
@@ -202,16 +221,16 @@ export default function ReportsPage() {
     };
 
     const generateInventarioValorizado = async () => {
-        const { data: products } = await supabase
-            .from('products')
-            .select('name, stock, price, category');
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        const totalItems = products?.reduce((acc, p) => acc + Number(p.stock || 0), 0) || 0;
-        const totalValue = products?.reduce((acc, p) => acc + (Number(p.stock || 0) * Number(p.price || 0)), 0) || 0;
+        const products = PRODUCTS_DATA;
+
+        const totalItems = products.reduce((acc, p) => acc + Number(p.stock || 0), 0);
+        const totalValue = products.reduce((acc, p) => acc + (Number(p.stock || 0) * Number(p.price || 0)), 0);
 
         // Agrupar por categoria
         const byCategory: Record<string, { count: number; value: number }> = {};
-        products?.forEach(p => {
+        products.forEach(p => {
             const cat = p.category || 'Sem Categoria';
             if (!byCategory[cat]) byCategory[cat] = { count: 0, value: 0 };
             byCategory[cat].count += Number(p.stock || 0);
@@ -235,12 +254,17 @@ export default function ReportsPage() {
     };
 
     const generateFluxoCaixa = async (startDate: string, endDate: string) => {
-        const { data: movements } = await supabase
-            .from('cash_movements')
-            .select('*')
-            .gte('created_at', startDate)
-            .lte('created_at', endDate + 'T23:59:59')
-            .order('created_at', { ascending: false });
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        const movements = MOCK_MOVEMENTS.filter(m => {
+            const date = new Date(m.created_at);
+            return date >= start && date <= end;
+        });
 
         const totals: Record<string, number> = {
             opening: 0,
@@ -250,7 +274,7 @@ export default function ReportsPage() {
             closing: 0,
         };
 
-        movements?.forEach(m => {
+        movements.forEach(m => {
             totals[m.type] = (totals[m.type] || 0) + Number(m.amount);
         });
 
@@ -261,7 +285,7 @@ export default function ReportsPage() {
         let content = `📅 Período: ${new Date(startDate).toLocaleDateString('pt-BR')} a ${new Date(endDate).toLocaleDateString('pt-BR')}\n\n`;
         content += `💰 FLUXO DE CAIXA\n`;
         content += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-        content += `Movimentações: ${movements?.length || 0}\n\n`;
+        content += `Movimentações: ${movements.length}\n\n`;
         content += `📥 ENTRADAS\n`;
         content += `  Aberturas: ${formatCurrency(totals.opening)}\n`;
         content += `  Vendas: ${formatCurrency(totals.sale)}\n`;
@@ -275,14 +299,13 @@ export default function ReportsPage() {
     };
 
     const generateContasReceber = async () => {
-        const { data: receivables } = await supabase
-            .from('receivables')
-            .select('*')
-            .order('due_date', { ascending: true });
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        const pendentes = receivables?.filter(r => r.status === 'Pendente') || [];
-        const recebidos = receivables?.filter(r => r.status === 'Recebido') || [];
-        const atrasados = receivables?.filter(r => r.status === 'Atrasado') || [];
+        const receivables = MOCK_RECEIVABLES.sort((a, b) => new Date(a.due_date).getTime() - new Date(b.due_date).getTime());
+
+        const pendentes = receivables.filter(r => r.status === 'Pendente');
+        const recebidos = receivables.filter(r => r.status === 'Recebido');
+        const atrasados = receivables.filter(r => r.status === 'Atrasado');
 
         const totalPendente = pendentes.reduce((acc, r) => acc + Number(r.value), 0);
         const totalRecebido = recebidos.reduce((acc, r) => acc + Number(r.value), 0);

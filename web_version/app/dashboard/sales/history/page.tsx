@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import {
     Card,
     CardContent,
-    CardDescription,
     CardHeader,
     CardTitle,
 } from "@/components/ui/card";
@@ -20,7 +19,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -31,25 +29,10 @@ import {
     RefreshCcw,
     Loader2,
     Calendar,
-    DollarSign,
-    User,
     ShoppingBag,
     Clock,
 } from "lucide-react";
-
-interface Sale {
-    id: number;
-    customer_name: string;
-    customer_phone: string | null;
-    payment_method: string;
-    payment_condition: string;
-    subtotal: number;
-    discount: number;
-    total: number;
-    items: { name: string; quantity: number; price: number }[];
-    created_at: string;
-    status?: string;
-}
+import { MOCK_SALES, Sale } from "@/lib/mock-data";
 
 export default function SalesHistoryPage() {
     const [sales, setSales] = useState<Sale[]>([]);
@@ -77,32 +60,32 @@ export default function SalesHistoryPage() {
             'cartão crédito': 'Cartão Crédito',
             'duplicata': 'Duplicata',
         };
-        return labels[method] || method;
+        return labels[method.toLowerCase()] || method;
     };
 
     const fetchSales = async () => {
         setLoading(true);
-        let query = supabase
-            .from('sales')
-            .select('*')
-            .order('created_at', { ascending: false })
-            .limit(100);
+        // Simular delay de rede
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        let filtered = [...MOCK_SALES];
 
         if (dateFilter) {
             const startDate = new Date(dateFilter);
             startDate.setHours(0, 0, 0, 0);
             const endDate = new Date(dateFilter);
             endDate.setHours(23, 59, 59, 999);
-            query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+
+            filtered = filtered.filter(s => {
+                const saleDate = new Date(s.created_at);
+                return saleDate >= startDate && saleDate <= endDate;
+            });
         }
 
-        const { data, error } = await query;
+        // Sort by date desc
+        filtered.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-        if (data && !error) {
-            setSales(data as Sale[]);
-        } else {
-            console.error('Error fetching sales:', error);
-        }
+        setSales(filtered);
         setLoading(false);
     };
 
@@ -111,8 +94,8 @@ export default function SalesHistoryPage() {
     }, [dateFilter]);
 
     const filteredSales = sales.filter(sale =>
-        sale.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        sale.id.toString().includes(searchTerm)
+    (sale.customer_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        sale.id.toString().includes(searchTerm))
     );
 
     const handleViewDetails = (sale: Sale) => {
@@ -179,18 +162,15 @@ export default function SalesHistoryPage() {
         if (!selectedSale) return;
         setCanceling(true);
 
-        // Update sale status to cancelled
-        const { error } = await supabase
-            .from('sales')
-            .update({ status: 'cancelled' })
-            .eq('id', selectedSale.id);
+        // Simulate network request
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
-        if (error) {
-            toast.error('Erro ao cancelar venda: ' + error.message);
-        } else {
-            toast.success('Venda cancelada com sucesso!');
-            fetchSales();
-        }
+        // Update local state
+        setSales(prev => prev.map(s =>
+            s.id === selectedSale.id ? { ...s, status: 'cancelled' } : s
+        ));
+
+        toast.success('Venda cancelada com sucesso!');
 
         setCanceling(false);
         setShowCancelModal(false);

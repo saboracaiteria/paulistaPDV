@@ -15,7 +15,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { parseImportFile, Customer } from "@/lib/universal-parser";
 import { ImportReviewDialog } from "@/components/import-review-dialog";
-import { supabase } from "@/lib/supabase";
 
 interface ClientData {
     id: number;
@@ -26,9 +25,14 @@ interface ClientData {
     city: string;
 }
 
+const MOCK_CLIENTS: ClientData[] = [
+    { id: 1, name: "Maria Silva", email: "maria@email.com", phone: "(11) 99999-1111", address: "Rua A, 123", city: "São Paulo" },
+    { id: 2, name: "João Santos", email: "joao@email.com", phone: "(11) 99999-2222", address: "Av. B, 456", city: "Campinas" },
+];
+
 export default function CustomersPage() {
-    const [clients, setClients] = useState<ClientData[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [clients, setClients] = useState<ClientData[]>(MOCK_CLIENTS);
+    const [loading, setLoading] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [currentClient, setCurrentClient] = useState<ClientData | null>(null);
@@ -48,26 +52,6 @@ export default function CustomersPage() {
         address: "",
         city: ""
     });
-
-    // Fetch clients from Supabase
-    const fetchClients = async () => {
-        setLoading(true);
-        const { data, error } = await supabase
-            .from("customers")
-            .select("*")
-            .order("name");
-
-        if (data && !error) {
-            setClients(data as ClientData[]);
-        } else if (error) {
-            console.error("Error fetching customers:", error);
-        }
-        setLoading(false);
-    };
-
-    useEffect(() => {
-        fetchClients();
-    }, []);
 
     // Smart search - supports multiple words (e.g., "JO SIL" finds "João Silva")
     const filteredClients = clients.filter(client => {
@@ -105,45 +89,31 @@ export default function CustomersPage() {
 
     const handleSave = async () => {
         setSaving(true);
+        // Simulate specific delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         const payload = {
             name: formData.name,
-            email: formData.email || null,
-            phone: formData.phone || null,
-            address: formData.address || null,
-            city: formData.city || null
+            email: formData.email || "",
+            phone: formData.phone || "",
+            address: formData.address || "",
+            city: formData.city || ""
         };
 
-        let error;
         if (currentClient) {
-            // Update
-            const result = await supabase
-                .from("customers")
-                .update(payload)
-                .eq("id", currentClient.id);
-            error = result.error;
+            setClients(prev => prev.map(c => c.id === currentClient.id ? { ...c, ...payload } : c));
         } else {
-            // Insert
-            const result = await supabase.from("customers").insert(payload);
-            error = result.error;
+            const newId = Math.max(...clients.map(c => c.id), 0) + 1;
+            setClients(prev => [...prev, { id: newId, ...payload }]);
         }
 
         setSaving(false);
-        if (error) {
-            alert("Erro ao salvar cliente: " + error.message);
-        } else {
-            setIsDialogOpen(false);
-            fetchClients();
-        }
+        setIsDialogOpen(false);
     };
 
     const handleDelete = async (id: number) => {
         if (confirm("Tem certeza que deseja excluir este cliente?")) {
-            const { error } = await supabase.from("customers").delete().eq("id", id);
-            if (error) {
-                alert("Erro ao excluir: " + error.message);
-            } else {
-                fetchClients();
-            }
+            setClients(prev => prev.filter(c => c.id !== id));
         }
     };
 
@@ -206,40 +176,34 @@ export default function CustomersPage() {
 
     const confirmImport = async () => {
         // Insert new items
-        if (importSummary.newItems.length > 0) {
-            const newPayload = importSummary.newItems.map(item => ({
-                name: item.name,
-                email: item.email || null,
-                phone: item.phone || null,
-                address: item.address || null,
-                city: item.city || null
-            }));
-            const { error } = await supabase.from("customers").insert(newPayload);
-            if (error) {
-                alert("Erro ao inserir clientes: " + error.message);
-                return;
-            }
-        }
+        let nextId = Math.max(...clients.map(c => c.id), 0) + 1;
+        const newClients = importSummary.newItems.map(item => ({
+            id: nextId++,
+            name: item.name,
+            email: item.email || "",
+            phone: item.phone || "",
+            address: item.address || "",
+            city: item.city || ""
+        }));
 
-        // Update existing items
-        for (const update of importSummary.updatedItems) {
-            const { error } = await supabase
-                .from("customers")
-                .update({
+        const updatedClients = [...clients];
+        // Apply updates
+        importSummary.updatedItems.forEach(update => {
+            const idx = updatedClients.findIndex(c => c.id === update.id);
+            if (idx >= 0) {
+                updatedClients[idx] = {
+                    ...updatedClients[idx],
                     name: update.name,
-                    email: update.email || null,
-                    phone: update.phone || null,
-                    address: update.address || null,
-                    city: update.city || null
-                })
-                .eq("id", update.id);
-            if (error) {
-                console.error("Erro ao atualizar cliente:", error);
+                    email: update.email || updatedClients[idx].email,
+                    phone: update.phone || updatedClients[idx].phone,
+                    address: update.address || updatedClients[idx].address,
+                    city: update.city || updatedClients[idx].city
+                };
             }
-        }
+        });
 
+        setClients([...updatedClients, ...newClients]);
         setReviewOpen(false);
-        fetchClients();
         alert("Importação de Clientes concluída!");
     };
 

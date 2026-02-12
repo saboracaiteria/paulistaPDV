@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { DollarSign, ShoppingCart, Users, Activity, TrendingUp, Loader2, AlertTriangle, Package, X } from "lucide-react";
+import { DollarSign, ShoppingCart, Users, Activity, TrendingUp, Loader2, AlertTriangle, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import {
@@ -12,6 +11,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
+import { MOCK_SALES, MOCK_CLIENTS, Sale } from "@/lib/mock-data";
+import { PRODUCTS_DATA, Product } from "@/lib/products-data";
 
 interface DashboardStats {
     totalSales: number;
@@ -20,13 +21,6 @@ interface DashboardStats {
     lowStockCount: number;
     salesChange: number;
     ordersChange: number;
-}
-
-interface Sale {
-    id: number;
-    customer_name: string;
-    total: number;
-    created_at: string;
 }
 
 interface MonthlyData {
@@ -46,7 +40,7 @@ export default function DashboardPage() {
     const [recentSales, setRecentSales] = useState<Sale[]>([]);
     const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
     const [loading, setLoading] = useState(true);
-    const [lowStockProducts, setLowStockProducts] = useState<{ id: number; name: string; stock: number; category: string }[]>([]);
+    const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
     const [showLowStockModal, setShowLowStockModal] = useState(false);
 
     const formatCurrency = (value: number) => {
@@ -56,86 +50,69 @@ export default function DashboardPage() {
     useEffect(() => {
         const fetchDashboardData = async () => {
             setLoading(true);
+
+            // Simular delay de rede
+            await new Promise(resolve => setTimeout(resolve, 800));
+
             const now = new Date();
             const currentMonth = now.getMonth();
             const currentYear = now.getFullYear();
 
-            // First day of current month
-            const firstDayCurrentMonth = new Date(currentYear, currentMonth, 1).toISOString();
-            // First day of last month
-            const firstDayLastMonth = new Date(currentYear, currentMonth - 1, 1).toISOString();
-            const lastDayLastMonth = new Date(currentYear, currentMonth, 0).toISOString();
-
             try {
-                // Fetch current month sales
-                const { data: currentMonthSales } = await supabase
-                    .from('sales')
-                    .select('total')
-                    .gte('created_at', firstDayCurrentMonth);
+                // Filtra vendas do mês atual
+                const currentMonthSales = MOCK_SALES.filter(sale => {
+                    const saleDate = new Date(sale.created_at);
+                    return saleDate.getMonth() === currentMonth && saleDate.getFullYear() === currentYear;
+                });
 
-                const totalSales = currentMonthSales?.reduce((acc, s) => acc + Number(s.total), 0) || 0;
-                const salesCount = currentMonthSales?.length || 0;
+                const totalSales = currentMonthSales.reduce((acc, s) => acc + s.total, 0);
+                const salesCount = currentMonthSales.length;
 
-                // Fetch last month sales for comparison
-                const { data: lastMonthSales } = await supabase
-                    .from('sales')
-                    .select('total')
-                    .gte('created_at', firstDayLastMonth)
-                    .lte('created_at', lastDayLastMonth);
-
-                const lastMonthTotal = lastMonthSales?.reduce((acc, s) => acc + Number(s.total), 0) || 0;
-                const lastMonthCount = lastMonthSales?.length || 0;
+                // Vendas do mês anterior (simulado como 80% do atual para exemplo)
+                const lastMonthTotal = totalSales * 0.8;
+                const lastMonthCount = Math.floor(salesCount * 0.8);
 
                 // Calculate changes
                 const salesChange = lastMonthTotal > 0 ? ((totalSales - lastMonthTotal) / lastMonthTotal) * 100 : 0;
                 const ordersChange = lastMonthCount > 0 ? ((salesCount - lastMonthCount) / lastMonthCount) * 100 : 0;
 
-                // Fetch customers count
-                const { count: customersCount } = await supabase
-                    .from('customers')
-                    .select('*', { count: 'exact', head: true });
+                // Customers count
+                const customersCount = MOCK_CLIENTS.length;
 
-                // Fetch low stock products
-                const { count: lowStockCount } = await supabase
-                    .from('products')
-                    .select('*', { count: 'exact', head: true })
-                    .lt('stock', 10);
+                // Low stock products
+                const lowStockItems = PRODUCTS_DATA.filter(p => p.stock < 10);
+                const lowStockCount = lowStockItems.length;
 
                 setStats({
                     totalSales,
                     salesCount,
-                    customersCount: customersCount || 0,
-                    lowStockCount: lowStockCount || 0,
+                    customersCount,
+                    lowStockCount,
                     salesChange,
                     ordersChange,
                 });
 
-                // Fetch recent sales
-                const { data: recent } = await supabase
-                    .from('sales')
-                    .select('id, customer_name, total, created_at')
-                    .order('created_at', { ascending: false })
-                    .limit(5);
+                // Recent sales
+                const recent = [...MOCK_SALES]
+                    .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                    .slice(0, 5);
 
-                setRecentSales(recent as Sale[] || []);
+                setRecentSales(recent);
 
-                // Fetch monthly data for chart (last 12 months)
-                const monthlyResults: MonthlyData[] = [];
+                // Monthly data for chart (simulated distribution based on mock sales)
                 const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+                const monthlyResults: MonthlyData[] = [];
 
                 for (let i = 11; i >= 0; i--) {
-                    const monthDate = new Date(currentYear, currentMonth - i, 1);
-                    const monthEnd = new Date(currentYear, currentMonth - i + 1, 0);
+                    const d = new Date(currentYear, currentMonth - i, 1);
+                    const monthIndex = d.getMonth();
 
-                    const { data: monthSales } = await supabase
-                        .from('sales')
-                        .select('total')
-                        .gte('created_at', monthDate.toISOString())
-                        .lte('created_at', monthEnd.toISOString());
+                    // Generate randomish data for the chart since we don't have 12 months of mock data
+                    const isCurrentMonth = i === 0;
+                    const monthTotal = isCurrentMonth ? totalSales : Math.random() * 5000 + 1000;
 
-                    const monthTotal = monthSales?.reduce((acc, s) => acc + Number(s.total), 0) || 0;
                     monthlyResults.push({
-                        month: monthNames[monthDate.getMonth()],
+                        month: monthNames[monthIndex],
                         total: monthTotal,
                     });
                 }
@@ -143,7 +120,7 @@ export default function DashboardPage() {
                 setMonthlyData(monthlyResults);
 
                 // Notificar sobre estoque baixo
-                if ((lowStockCount || 0) > 0) {
+                if (lowStockCount > 0) {
                     toast.warning(`Atenção: ${lowStockCount} produto(s) com estoque baixo!`, {
                         description: 'Clique no card "Produtos em Baixa" para ver detalhes.',
                         duration: 6000,
@@ -197,6 +174,15 @@ export default function DashboardPage() {
         },
     ];
 
+    const handleOpenLowStock = () => {
+        const lowStock = PRODUCTS_DATA
+            .filter(p => p.stock < 10)
+            .sort((a, b) => a.stock - b.stock);
+
+        setLowStockProducts(lowStock);
+        setShowLowStockModal(true);
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-64">
@@ -218,19 +204,7 @@ export default function DashboardPage() {
                 {statCards.map((stat, index) => (
                     <div
                         key={stat.label}
-                        onClick={index === 3 && stats.lowStockCount > 0 ? async () => {
-                            // Fetch low stock products when clicking the card
-                            const { data } = await supabase
-                                .from('products')
-                                .select('id, name, stock, category')
-                                .lt('stock', 10)
-                                .order('stock', { ascending: true })
-                                .limit(20);
-                            if (data) {
-                                setLowStockProducts(data);
-                                setShowLowStockModal(true);
-                            }
-                        } : undefined}
+                        onClick={index === 3 && stats.lowStockCount > 0 ? handleOpenLowStock : undefined}
                         className={cn(
                             "rounded-xl border bg-card p-6 shadow-sm transition-all hover:shadow-md",
                             index === 3 && stats.lowStockCount > 0 && "cursor-pointer hover:border-rose-300 hover:bg-rose-50/50"
@@ -365,11 +339,6 @@ export default function DashboardPage() {
                                 ))}
                             </div>
                         )}
-                    </div>
-                    <div className="flex justify-end pt-4 border-t">
-                        <Button variant="outline" onClick={() => setShowLowStockModal(false)}>
-                            Fechar
-                        </Button>
                     </div>
                 </DialogContent>
             </Dialog>

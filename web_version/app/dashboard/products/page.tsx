@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useRef, useMemo, useEffect } from "react";
 import { Plus, Search, Filter, Edit, Trash2, Download, Upload, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,22 +17,18 @@ import {
 import { PRODUCTS_DATA, Product } from "@/lib/products-data";
 import { parseImportFile } from "@/lib/universal-parser";
 import { ImportReviewDialog } from "@/components/import-review-dialog";
-import { supabase } from "@/lib/supabase";
-import { useEffect, useCallback } from "react";
 
 export default function ProductsPage() {
-    // Load products state
-    const [products, setProducts] = useState<Product[]>([]);
+    // Load products state from static JSON
+    const [products, setProducts] = useState<Product[]>(PRODUCTS_DATA);
     const [searchTerm, setSearchTerm] = useState("");
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [currentProduct, setCurrentProduct] = useState<Product | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [totalProducts, setTotalProducts] = useState(0);
+    const [isLoading, setIsLoading] = useState(false);
 
     // Import Review State
     const [reviewOpen, setReviewOpen] = useState(false);
     const [importSummary, setImportSummary] = useState<{ newItems: Product[], updatedItems: Product[] }>({ newItems: [], updatedItems: [] });
-    const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
@@ -48,106 +44,28 @@ export default function ProductsPage() {
         status: "Ativo"
     });
 
-    // Debounce search term
-    useEffect(() => {
-        const timer = setTimeout(() => {
-            fetchProducts(1, searchTerm); // Reset to page 1 on search
-            setCurrentPage(1);
-        }, 500);
+    // Filter products based on search term
+    const filteredProducts = useMemo(() => {
+        if (!searchTerm) return products;
 
-        return () => clearTimeout(timer);
-    }, [searchTerm]);
+        const lowerSearch = searchTerm.toLowerCase();
+        return products.filter(p =>
+            p.name.toLowerCase().includes(lowerSearch) ||
+            p.id.toString().includes(lowerSearch) ||
+            p.category.toLowerCase().includes(lowerSearch)
+        );
+    }, [products, searchTerm]);
 
-    // Fetch on page change (but not on search term change, that is handled above)
-    // We need to be careful not to double fetch.
-    useEffect(() => {
-        // Only fetch if it wasn't triggered by search change just now.
-        // Actually, simplest way is:
-        fetchProducts(currentPage, searchTerm);
-    }, [currentPage]);
-
-    // Note: The above creates a double fetch on search change because setCurrentPage(1) triggers it.
-    // Optimization: check if we should skip. But for now, correctness > perf optimization of 1 extra call.
-    // Better pattern:
-
-    const fetchProducts = async (page: number, search: string) => {
-        setIsLoading(true);
-        try {
-            let query = supabase
-                .from('products')
-                .select('*', { count: 'exact' });
-
-            let clientSideFilter: ((products: Product[]) => Product[]) | null = null;
-
-            if (search) {
-                const cleanTerm = search.trim();
-
-                // Check if it's a number (ID search)
-                if (!isNaN(Number(cleanTerm)) && cleanTerm.length <= 6) {
-                    query = query.or(`id.eq.${cleanTerm},name.ilike.%${cleanTerm}%`);
-                } else {
-                    // Split search term into words for intelligent search
-                    const words = cleanTerm.split(/\s+/).filter(w => w.length > 0);
-
-                    if (words.length === 1) {
-                        query = query.ilike('name', `%${words[0]}%`);
-                    } else {
-                        // Multiple words - build OR filter for server
-                        let combinedFilter = '';
-                        words.forEach((word, index) => {
-                            if (index > 0) combinedFilter += ',';
-                            combinedFilter += `name.ilike.%${word}%`;
-                        });
-                        query = query.or(combinedFilter);
-
-                        // Will filter client-side for AND logic
-                        clientSideFilter = (data: Product[]) => {
-                            return data.filter(product => {
-                                const name = product.name.toLowerCase();
-                                return words.every(word => name.includes(word.toLowerCase()));
-                            });
-                        };
-                    }
-                }
-            }
-
-            const from = (page - 1) * itemsPerPage;
-            const to = from + itemsPerPage - 1;
-
-            const { data, error, count } = await query
-                .order('id', { ascending: true })
-                .range(from, to * 2); // Fetch more for client-side filtering
-
-            if (error) throw error;
-
-            if (data) {
-                if (clientSideFilter) {
-                    const filtered = clientSideFilter(data);
-                    setProducts(filtered.slice(0, itemsPerPage));
-                    setTotalProducts(filtered.length);
-                } else {
-                    setProducts(data.slice(0, itemsPerPage));
-                    if (count !== null) setTotalProducts(count);
-                }
-            }
-        } catch (error) {
-            console.error("Error fetching products:", error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    // Calculate Pagination (Server side count)
+    // Pagination Logic
+    const totalProducts = filteredProducts.length;
     const totalPages = Math.ceil(totalProducts / itemsPerPage);
-    // Since we are server-side, currentProducts IS products
-    const currentProducts = products;
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = Math.min(startIndex + itemsPerPage, totalProducts);
+    const currentProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
             setCurrentPage(newPage);
-            // Effect will trigger fetch
         }
     };
 
@@ -183,47 +101,12 @@ export default function ProductsPage() {
 
         try {
             if (currentProduct) {
-                // Update
-                const { error } = await supabase
-                    .from('products')
-                    .update({
-                        name: productToSave.name,
-                        category: productToSave.category,
-                        price: productToSave.price,
-                        stock: productToSave.stock,
-                        status: productToSave.status
-                    })
-                    .eq('id', currentProduct.id);
-
-                if (error) throw error;
-
-                // Optimistic update
+                // Update local state
                 setProducts(products.map(p => p.id === currentProduct.id ? { ...productToSave, id: p.id } : p));
             } else {
-                // Create
-                const newId = Math.floor(Math.random() * 1000000); // Temporary ID generation strategy if not auto-increment
-                // Better approach: Let DB handle ID or fetch max ID first. 
-                // For this migration, we used 'id' as bigint primary key without auto-increment in the SQL provided? 
-                // Wait, the SQL was `id bigint primary key`. If it's not generated by default, we need to generate it.
-                // The `products-data.ts` had manual IDs. 
-                // Let's assume we want to find the max ID to avoid collision.
-
-                const { data: maxIdData } = await supabase
-                    .from('products')
-                    .select('id')
-                    .order('id', { ascending: false })
-                    .limit(1)
-                    .single();
-
-                const nextId = (maxIdData?.id || 0) + 1;
-
-                const { error } = await supabase
-                    .from('products')
-                    .insert([{ ...productToSave, id: nextId }]);
-
-                if (error) throw error;
-
-                // Optimistic update
+                // Create new ID (Max ID + 1)
+                const maxId = products.length > 0 ? Math.max(...products.map(p => p.id)) : 0;
+                const nextId = maxId + 1;
                 setProducts([{ ...productToSave, id: nextId }, ...products]);
             }
             setIsDialogOpen(false);
@@ -235,14 +118,7 @@ export default function ProductsPage() {
 
     const handleDelete = async (id: number) => {
         if (confirm("Tem certeza que deseja excluir este produto?")) {
-            try {
-                const { error } = await supabase.from('products').delete().eq('id', id);
-                if (error) throw error;
-                setProducts(products.filter(p => p.id !== id));
-            } catch (error) {
-                console.error("Error deleting product:", error);
-                alert("Erro ao excluir produto.");
-            }
+            setProducts(products.filter(p => p.id !== id));
         }
     };
 
@@ -272,13 +148,12 @@ export default function ProductsPage() {
             // Calculate Diff
             const newItems: Product[] = [];
             const updatedItems: Product[] = [];
-            const simulatedState = [...products];
 
+            // Check against current products state
             parsedData.forEach(item => {
-                const existingIndex = simulatedState.findIndex(p => p.name.toLowerCase() === item.name.toLowerCase());
+                const existingIndex = products.findIndex(p => p.name.toLowerCase() === item.name.toLowerCase());
                 if (existingIndex >= 0) {
-                    // Simulate update for review
-                    updatedItems.push({ ...simulatedState[existingIndex], ...item, id: simulatedState[existingIndex].id });
+                    updatedItems.push({ ...products[existingIndex], ...item, id: products[existingIndex].id });
                 } else {
                     newItems.push(item);
                 }
@@ -301,53 +176,33 @@ export default function ProductsPage() {
 
     const confirmImport = async () => {
         try {
-            // Get max ID for new items
-            const { data: maxIdData } = await supabase
-                .from('products')
-                .select('id')
-                .order('id', { ascending: false })
-                .limit(1)
-                .single();
+            let maxId = products.length > 0 ? Math.max(...products.map(p => p.id)) : 0;
 
-            let maxId = maxIdData?.id || 0;
+            // Prepare new items with IDs
+            const newItemsWithIds = importSummary.newItems.map(item => {
+                maxId++;
+                return { ...item, id: maxId };
+            });
 
-            // Insert new items
-            if (importSummary.newItems.length > 0) {
-                const newItemsWithIds = importSummary.newItems.map(item => {
-                    maxId++;
-                    return { ...item, id: maxId };
-                });
+            // Update state: filter out items being updated, add updated items, add new items
+            const updatedIds = new Set(importSummary.updatedItems.map(i => i.id));
+            const productsWithoutUpdates = products.filter(p => !updatedIds.has(p.id));
 
-                const { error: insertError } = await supabase
-                    .from('products')
-                    .insert(newItemsWithIds);
+            const newProductList = [
+                ...newItemsWithIds,
+                ...importSummary.updatedItems,
+                ...productsWithoutUpdates
+            ];
 
-                if (insertError) throw insertError;
-            }
+            // Sort by ID to keep consistent
+            newProductList.sort((a, b) => a.id - b.id);
 
-            // Update existing items
-            for (const item of importSummary.updatedItems) {
-                const { error: updateError } = await supabase
-                    .from('products')
-                    .update({
-                        name: item.name,
-                        category: item.category,
-                        price: item.price,
-                        stock: item.stock,
-                        status: item.status
-                    })
-                    .eq('id', item.id);
-
-                if (updateError) throw updateError;
-            }
-
-            // Refresh the list
-            fetchProducts(currentPage, searchTerm);
+            setProducts(newProductList);
             setReviewOpen(false);
             alert(`Importação concluída! ${importSummary.newItems.length} novos, ${importSummary.updatedItems.length} atualizados.`);
         } catch (error) {
             console.error("Error importing products:", error);
-            alert("Erro ao salvar importação no banco de dados.");
+            alert("Erro ao processar importação.");
         }
     };
 
@@ -357,7 +212,7 @@ export default function ProductsPage() {
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Produtos</h1>
                     <p className="text-muted-foreground">
-                        Gerencie seu catálogo, preços e estoque.
+                        Gerencie seu catálogo, preços e estoque (Modo Estático).
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -490,7 +345,7 @@ export default function ProductsPage() {
                             </Label>
                             <Input
                                 id="name"
-                                value={formData.name}
+                                value={formData.name || ""}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 className="col-span-3"
                             />

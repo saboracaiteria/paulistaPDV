@@ -28,7 +28,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 
 interface CashRegister {
@@ -55,10 +54,31 @@ interface CashMovement {
     created_at: string;
 }
 
+const MOCK_REGISTER: CashRegister = {
+    id: 1,
+    date: new Date().toISOString().slice(0, 10),
+    status: "open",
+    opening_amount: 150.00,
+    closing_amount: null,
+    expected_amount: null,
+    difference: null,
+    operator: "Demo User",
+    opened_at: new Date().toISOString(),
+    closed_at: null,
+    notes: "Demo Register"
+};
+
+const MOCK_MOVEMENTS: CashMovement[] = [
+    { id: 1, register_id: 1, type: "opening", amount: 150.00, description: "Abertura de Caixa", payment_method: "Dinheiro", created_at: new Date(Date.now() - 3600000 * 4).toISOString() },
+    { id: 2, register_id: 1, type: "sale", amount: 55.00, description: "Venda #105", payment_method: "Dinheiro", created_at: new Date(Date.now() - 3600000 * 3).toISOString() },
+    { id: 3, register_id: 1, type: "sale", amount: 20.00, description: "Venda #106", payment_method: "Dinheiro", created_at: new Date(Date.now() - 3600000 * 2).toISOString() },
+    { id: 4, register_id: 1, type: "sangria", amount: 100.00, description: "Pagamento Motoboy", payment_method: "Dinheiro", created_at: new Date(Date.now() - 3600000 * 1).toISOString() },
+];
+
 export default function CashierPage() {
-    const [currentRegister, setCurrentRegister] = useState<CashRegister | null>(null);
-    const [movements, setMovements] = useState<CashMovement[]>([]);
-    const [loading, setLoading] = useState(true);
+    const [currentRegister, setCurrentRegister] = useState<CashRegister | null>(MOCK_REGISTER);
+    const [movements, setMovements] = useState<CashMovement[]>(MOCK_MOVEMENTS);
+    const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
 
     // Dialog states
@@ -66,45 +86,6 @@ export default function CashierPage() {
     const [formAmount, setFormAmount] = useState("");
     const [formDescription, setFormDescription] = useState("");
     const [countedAmount, setCountedAmount] = useState("");
-
-    // Fetch current register
-    const fetchCurrentRegister = async () => {
-        setLoading(true);
-        const today = new Date().toISOString().slice(0, 10);
-
-        // Look for an open register or today's register
-        const { data, error } = await supabase
-            .from("cash_registers")
-            .select("*")
-            .or(`status.eq.open,date.eq.${today}`)
-            .order("opened_at", { ascending: false })
-            .limit(1);
-
-        if (data && data.length > 0) {
-            setCurrentRegister(data[0] as CashRegister);
-            fetchMovements(data[0].id);
-        } else {
-            setCurrentRegister(null);
-            setMovements([]);
-        }
-        setLoading(false);
-    };
-
-    const fetchMovements = async (registerId: number) => {
-        const { data } = await supabase
-            .from("cash_movements")
-            .select("*")
-            .eq("register_id", registerId)
-            .order("created_at", { ascending: false });
-
-        if (data) {
-            setMovements(data as CashMovement[]);
-        }
-    };
-
-    useEffect(() => {
-        fetchCurrentRegister();
-    }, []);
 
     // Calculate totals
     const calculateTotals = () => {
@@ -129,30 +110,35 @@ export default function CashierPage() {
         setSaving(true);
         const amount = Number(formAmount) || 0;
 
-        const { data, error } = await supabase
-            .from("cash_registers")
-            .insert({
-                opening_amount: amount,
-                status: "open",
-                operator: "Operador" // TODO: Get from auth
-            })
-            .select()
-            .single();
+        // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        if (data && !error) {
-            // Create opening movement
-            await supabase.from("cash_movements").insert({
-                register_id: data.id,
-                type: "opening",
-                amount: amount,
-                description: "Abertura de caixa"
-            });
+        const newRegister: CashRegister = {
+            id: Date.now(),
+            date: new Date().toISOString().slice(0, 10),
+            status: "open",
+            opening_amount: amount,
+            closing_amount: null,
+            expected_amount: null,
+            difference: null,
+            operator: "Demo Operator",
+            opened_at: new Date().toISOString(),
+            closed_at: null,
+            notes: ""
+        };
 
-            setCurrentRegister(data as CashRegister);
-            fetchMovements(data.id);
-        } else if (error) {
-            alert("Erro ao abrir caixa: " + error.message);
-        }
+        const newMovement: CashMovement = {
+            id: Date.now(),
+            register_id: newRegister.id,
+            type: "opening",
+            amount: amount,
+            description: "Abertura de caixa",
+            payment_method: "Dinheiro",
+            created_at: new Date().toISOString()
+        };
+
+        setCurrentRegister(newRegister);
+        setMovements([newMovement]);
 
         setSaving(false);
         setOpenDialog(null);
@@ -163,20 +149,21 @@ export default function CashierPage() {
     const handleSangria = async () => {
         if (!currentRegister) return;
         setSaving(true);
-        const amount = Number(formAmount) || 0;
+        // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        const { error } = await supabase.from("cash_movements").insert({
+        const amount = Number(formAmount) || 0;
+        const newMovement: CashMovement = {
+            id: Date.now(),
             register_id: currentRegister.id,
             type: "sangria",
             amount: amount,
-            description: formDescription || "Sangria"
-        });
+            description: formDescription || "Sangria",
+            payment_method: "Dinheiro",
+            created_at: new Date().toISOString()
+        };
 
-        if (error) {
-            alert("Erro ao registrar sangria: " + error.message);
-        } else {
-            fetchMovements(currentRegister.id);
-        }
+        setMovements(prev => [newMovement, ...prev]);
 
         setSaving(false);
         setOpenDialog(null);
@@ -188,20 +175,21 @@ export default function CashierPage() {
     const handleSuprimento = async () => {
         if (!currentRegister) return;
         setSaving(true);
-        const amount = Number(formAmount) || 0;
+        // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 500));
 
-        const { error } = await supabase.from("cash_movements").insert({
+        const amount = Number(formAmount) || 0;
+        const newMovement: CashMovement = {
+            id: Date.now(),
             register_id: currentRegister.id,
             type: "suprimento",
             amount: amount,
-            description: formDescription || "Suprimento"
-        });
+            description: formDescription || "Suprimento",
+            payment_method: "Dinheiro",
+            created_at: new Date().toISOString()
+        };
 
-        if (error) {
-            alert("Erro ao registrar suprimento: " + error.message);
-        } else {
-            fetchMovements(currentRegister.id);
-        }
+        setMovements(prev => [newMovement, ...prev]);
 
         setSaving(false);
         setOpenDialog(null);
@@ -213,33 +201,32 @@ export default function CashierPage() {
     const handleCloseRegister = async () => {
         if (!currentRegister) return;
         setSaving(true);
+        // Simulate delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         const counted = Number(countedAmount) || 0;
         const diff = counted - expected;
 
-        const { error } = await supabase
-            .from("cash_registers")
-            .update({
-                status: "closed",
-                closing_amount: counted,
-                expected_amount: expected,
-                difference: diff,
-                closed_at: new Date().toISOString()
-            })
-            .eq("id", currentRegister.id);
+        setCurrentRegister(prev => prev ? ({
+            ...prev,
+            status: "closed",
+            closing_amount: counted,
+            expected_amount: expected,
+            difference: diff,
+            closed_at: new Date().toISOString()
+        }) : null);
 
-        if (error) {
-            alert("Erro ao fechar caixa: " + error.message);
-        } else {
-            // Add closing movement
-            await supabase.from("cash_movements").insert({
-                register_id: currentRegister.id,
-                type: "closing",
-                amount: counted,
-                description: `Fechamento - Diferença: ${formatCurrency(diff)}`
-            });
+        const newMovement: CashMovement = {
+            id: Date.now(),
+            register_id: currentRegister.id,
+            type: "closing",
+            amount: counted,
+            description: `Fechamento - Diferença: ${formatCurrency(diff)}`,
+            payment_method: null,
+            created_at: new Date().toISOString()
+        };
 
-            fetchCurrentRegister();
-        }
+        setMovements(prev => [newMovement, ...prev]);
 
         setSaving(false);
         setOpenDialog(null);
@@ -406,7 +393,7 @@ export default function CashierPage() {
                     </p>
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="outline" size="icon" onClick={fetchCurrentRegister}>
+                    <Button variant="outline" size="icon" onClick={() => { }}>
                         <RefreshCcw className="h-4 w-4" />
                     </Button>
                     {currentRegister && (
@@ -805,3 +792,4 @@ export default function CashierPage() {
         </div>
     );
 }
+

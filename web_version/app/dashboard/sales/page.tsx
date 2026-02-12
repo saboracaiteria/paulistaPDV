@@ -3,8 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Search, ShoppingCart, Plus, Minus, Trash2, Edit2, Calculator, Save, X, Printer, Share2, FileText, Download, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Product } from "@/lib/products-data";
-import { supabase } from "@/lib/supabase";
+import { Product, PRODUCTS_DATA } from "@/lib/products-data";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -24,8 +23,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
+import { Separator } from "@/components/ui/separator";
 
 interface CartItem extends Product {
     quantity: number;
@@ -96,8 +94,7 @@ export default function SalesPage() {
     const checkoutWhatsappRef = useRef<HTMLInputElement>(null);
     const checkoutPrintRef = useRef<HTMLButtonElement>(null);
 
-    // Fetch products
-    // Fetch products (Server Side Search)
+    // Fetch products (Server Side Search simulation)
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchProducts(searchTerm);
@@ -106,57 +103,24 @@ export default function SalesPage() {
     }, [searchTerm]);
 
     const fetchProducts = async (term: string) => {
-        let query = supabase
-            .from('products')
-            .select('*')
-            .limit(100); // Increased limit for better search results
-
-        if (term) {
-            const cleanTerm = term.trim();
-
-            // Check if it's a number (ID search)
-            if (!isNaN(Number(cleanTerm)) && cleanTerm.length <= 6) {
-                query = query.or(`id.eq.${cleanTerm},name.ilike.%${cleanTerm}%`);
-            } else {
-                // Split search term into words for intelligent search
-                // This allows "BLC CIM 14" to find "BLOCO CIMENTO 14X19X39"
-                const words = cleanTerm.split(/\s+/).filter(w => w.length > 0);
-
-                if (words.length === 1) {
-                    // Single word - simple search
-                    query = query.ilike('name', `%${words[0]}%`);
-                } else {
-                    // Multiple words - each word must be found in name
-                    // Build a filter that requires all words to be present
-                    // Using AND logic: each word must match
-                    let combinedFilter = '';
-                    words.forEach((word, index) => {
-                        if (index > 0) combinedFilter += ',';
-                        combinedFilter += `name.ilike.%${word}%`;
-                    });
-
-                    query = query.or(combinedFilter);
-                }
-            }
+        if (!term) {
+            setProducts(PRODUCTS_DATA.slice(0, 50));
+            return;
         }
 
-        const { data, error } = await query.order('id', { ascending: true });
+        const cleanTerm = term.trim().toLowerCase();
+        const words = cleanTerm.split(/\s+/).filter(w => w.length > 0);
 
-        if (data) {
-            // If multiple words, filter client-side to ensure ALL words match (AND logic)
-            const cleanTerm = term.trim();
-            const words = cleanTerm.split(/\s+/).filter(w => w.length > 0);
+        const filtered = PRODUCTS_DATA.filter(product => {
+            // Check ID
+            if (product.id.toString() === cleanTerm) return true;
 
-            if (words.length > 1) {
-                const filtered = data.filter(product => {
-                    const name = product.name.toLowerCase();
-                    return words.every(word => name.includes(word.toLowerCase()));
-                });
-                setProducts(filtered.slice(0, 50));
-            } else {
-                setProducts(data.slice(0, 50));
-            }
-        }
+            // Check Name (all words must match)
+            const name = product.name.toLowerCase();
+            return words.every(word => name.includes(word));
+        });
+
+        setProducts(filtered.slice(0, 50));
     };
 
     // Filter products - No longer needed on client side since we fetch what we want
@@ -439,115 +403,7 @@ export default function SalesPage() {
     };
 
     const handlePrint = async () => {
-        // Check if cash register is open
-        const { data: openRegister } = await supabase
-            .from('cash_registers')
-            .select('id')
-            .eq('status', 'open')
-            .limit(1)
-            .single();
-
-        if (!openRegister) {
-            alert("⚠️ Nenhum caixa aberto!\n\nAbra o caixa em Financeiro → Caixa antes de registrar vendas.");
-            return;
-        }
-
-        // Save sale to Supabase
-        try {
-            const saleData = {
-                customer_name: clientName || "Consumidor Final",
-                customer_phone: whatsappNumber || null,
-                address: clientAddress || null,
-                observations: saleNotes || null,
-                payment_method: selectedPayment,
-                payment_condition: paymentCondition,
-                subtotal: subTotal,
-                discount: globalDiscount.value,
-                total: getFinalTotal(),
-                items: cart.map(item => ({
-                    id: item.id,
-                    name: item.name,
-                    quantity: item.quantity,
-                    price: item.price,
-                    discount: item.discount,
-                    discountType: item.discountType
-                }))
-            };
-
-            const { data: saleResult, error } = await supabase
-                .from('sales')
-                .insert(saleData)
-                .select()
-                .single();
-
-            if (error) {
-                console.error("Error saving sale:", error);
-                alert("Erro ao salvar venda: " + error.message);
-                return;
-            }
-
-            // Register cash movement
-            await supabase.from('cash_movements').insert({
-                register_id: openRegister.id,
-                type: 'sale',
-                amount: getFinalTotal(),
-                description: `Venda - ${clientName || "Consumidor Final"}`,
-                payment_method: selectedPayment,
-                sale_id: saleResult?.id || null
-            });
-
-            // ===== CONTROLE DE ESTOQUE AUTOMÁTICO =====
-            // Baixar estoque de cada produto vendido
-            for (const item of cart) {
-                // Buscar estoque atual do produto
-                const { data: currentProduct } = await supabase
-                    .from('products')
-                    .select('stock')
-                    .eq('id', item.id)
-                    .single();
-
-                if (currentProduct) {
-                    const newStock = Math.max(0, (currentProduct.stock || 0) - item.quantity);
-                    await supabase
-                        .from('products')
-                        .update({ stock: newStock })
-                        .eq('id', item.id);
-                }
-            }
-
-
-            // ===== GERAÇÃO DE DUPLICATAS AUTOMÁTICAS =====
-            // Se for parcelado (duplicata ou cartão crédito), criar contas a receber
-            if ((selectedPayment === 'duplicata' || selectedPayment === 'cartão crédito') && paymentCondition !== 'a_vista') {
-                const installments = calculateInstallments(getFinalTotal(), paymentCondition);
-
-                for (const inst of installments) {
-                    // Calcular data de vencimento baseado nos dias da parcela
-                    const dueDate = new Date();
-                    let daysToAdd = 0;
-
-                    if (inst.days.toLowerCase().includes('entrada')) {
-                        daysToAdd = 0;
-                    } else {
-                        const daysMatch = inst.days.match(/\d+/);
-                        daysToAdd = daysMatch ? parseInt(daysMatch[0]) : 30 * inst.number;
-                    }
-
-                    dueDate.setDate(dueDate.getDate() + daysToAdd);
-
-                    await supabase.from('receivables').insert({
-                        description: `Venda #${saleResult.id} - Parcela ${inst.number}/${installments.length}`,
-                        customer: clientName || 'Consumidor Final',
-                        value: inst.value,
-                        due_date: dueDate.toISOString().slice(0, 10),
-                        status: 'Pendente'
-                    });
-                }
-            }
-
-        } catch (err) {
-            console.error("Error:", err);
-        }
+        // Mock print/save
 
         // Notificação de sucesso
         toast.success('Venda Finalizada!', {
@@ -1101,13 +957,6 @@ export default function SalesPage() {
                     </div>
                 </DialogContent>
             </Dialog>
-
-            {/* Using inline separator for simplicity/robustness as earlier */}
-            <div className="hidden"><Separator /></div>
         </div>
     );
-}
-
-function Separator() {
-    return <div className="h-[1px] w-full bg-slate-200 my-4" />
 }
