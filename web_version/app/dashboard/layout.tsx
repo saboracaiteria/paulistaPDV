@@ -13,8 +13,8 @@ export default function DashboardLayout({
                 <Sidebar />
                 <div className="flex flex-1 flex-col overflow-hidden transition-all duration-300">
                     <Topbar />
-                    <main className="flex-1 overflow-y-auto bg-secondary/30 p-4 sm:p-6">
-                        <div className="mx-auto max-w-7xl animate-in fade-in slide-in-from-bottom-4 duration-500">
+                    <main className="flex-1 overflow-y-auto bg-secondary/30 p-2 sm:p-4">
+                        <div className="w-full animate-in fade-in slide-in-from-bottom-4 duration-500 h-full">
                             {children}
                         </div>
                     </main>

@@ -449,7 +449,7 @@ export default function SalesPage() {
                             <div className="col-span-3 font-semibold">{editingItem.product?.name}</div>
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
-                            <Label className="text-right">Preço</Label>
+                            <Label className="text-right text-card-foreground">Preço</Label>
                             <Input
                                 ref={editPriceRef}
                                 type="number"
@@ -467,7 +467,7 @@ export default function SalesPage() {
                                 value={editingItem.quantity}
                                 onChange={(e) => setEditingItem({ ...editingItem, quantity: Number(e.target.value) })}
                                 onKeyDown={(e) => handleEnterKey(e, editDiscountRef)}
-                                className="col-span-3 bg-cyan-50 border-cyan-300 focus:border-cyan-500 focus:ring-cyan-500 text-lg font-bold"
+                                className="col-span-3 bg-cyan-50 dark:bg-cyan-100 border-cyan-300 focus:border-cyan-500 focus:ring-cyan-500 text-lg font-bold text-slate-900"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -479,9 +479,9 @@ export default function SalesPage() {
                                     value={editingItem.discount}
                                     onChange={(e) => setEditingItem({ ...editingItem, discount: Number(e.target.value) })}
                                     onKeyDown={(e) => handleEnterKey(e, handleSaveItem)}
-                                    className="bg-amber-50 border-amber-300 focus:border-amber-500 focus:ring-amber-500"
+                                    className="bg-amber-50 dark:bg-amber-100 border-amber-300 focus:border-amber-500 focus:ring-amber-500 text-slate-900"
                                 />
-                                <select className="border rounded p-1 bg-amber-50 border-amber-300" value={editingItem.discountType} onChange={(e) => setEditingItem({ ...editingItem, discountType: e.target.value as "value" | "percent" })}>
+                                <select className="border rounded p-1 bg-amber-50 dark:bg-amber-100 border-amber-300 text-slate-900" value={editingItem.discountType} onChange={(e) => setEditingItem({ ...editingItem, discountType: e.target.value as "value" | "percent" })}>
                                     <option value="value">R$</option>
                                     <option value="percent">%</option>
                                 </select>
@@ -498,67 +498,93 @@ export default function SalesPage() {
             {/* CHECKOUT MODAL */}
             <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
                 <DialogContent className="sm:max-w-[600px]">
-                    <DialogHeader>
+                    <DialogHeader className="no-print">
                         <DialogTitle>Finalizar Venda</DialogTitle>
                         <DialogDescription>Selecione a forma de pagamento e finalize.</DialogDescription>
                     </DialogHeader>
 
-                    <div className="grid gap-6 py-4">
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <Label>Cliente (Opcional)</Label>
+                    {/* Print-only Header */}
+                    <div className="hidden print:block text-center border-b-2 border-dashed pb-2 mb-2 leading-tight">
+                        <h1 className="text-xl font-bold uppercase">{process.env.NEXT_PUBLIC_COMPANY_NAME || "Paulista PDV"}</h1>
+                        <p className="text-[14px] font-medium">Comprovante de Venda</p>
+                        <p className="text-[10px] text-muted-foreground">{new Date().toLocaleString()}</p>
+                    </div>
+
+                    <div className="grid gap-6 py-4 print:gap-1 print:py-0">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 print:gap-0">
+                            <div className="space-y-2 print:space-y-0">
+                                <Label className="no-print">Cliente (Opcional)</Label>
                                 <Input
                                     ref={checkoutClientRef}
                                     placeholder="Nome do cliente"
                                     value={clientName}
                                     onChange={(e) => setClientName(e.target.value)}
                                     onKeyDown={(e) => handleEnterKey(e, checkoutWhatsappRef)}
+                                    className="no-print"
                                 />
+                                <div className="hidden print:block text-sm">
+                                    <span className="font-bold">Cliente:</span> {clientName || "Consumidor Final"}
+                                </div>
                             </div>
-                            <div className="space-y-2">
-                                <Label>WhatsApp (Opcional)</Label>
+                            <div className="space-y-2 print:space-y-0">
+                                <Label className="no-print">WhatsApp (Opcional)</Label>
                                 <Input
                                     ref={checkoutWhatsappRef}
                                     placeholder="(00) 00000-0000"
                                     value={whatsappNumber}
                                     onChange={(e) => setWhatsappNumber(e.target.value)}
                                     onKeyDown={(e) => handleEnterKey(e, checkoutPrintRef)}
+                                    className="no-print"
                                 />
+                                {whatsappNumber && (
+                                    <div className="hidden print:block text-sm">
+                                        <span className="font-bold">WhatsApp:</span> {whatsappNumber}
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Endereço de Entrega (Opcional)</Label>
+                        <div className="space-y-2 print:space-y-0">
+                            <Label className="no-print">Endereço de Entrega (Opcional)</Label>
                             <Input
                                 placeholder="Rua, número, bairro, cidade"
                                 value={clientAddress}
                                 onChange={(e) => setClientAddress(e.target.value)}
+                                className="no-print"
                             />
+                            {clientAddress && (
+                                <div className="hidden print:block text-sm">
+                                    <span className="font-bold">Entrega:</span> {clientAddress}
+                                </div>
+                            )}
                         </div>
 
-                        <div className="space-y-2">
-                            <Label>Observações (Opcional)</Label>
+                        <div className="space-y-2 print:space-y-0">
+                            <Label className="no-print">Observações (Opcional)</Label>
                             <textarea
-                                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 no-print"
                                 placeholder="Observações sobre a venda ou entrega..."
                                 value={saleNotes}
                                 onChange={(e) => setSaleNotes(e.target.value)}
                             />
+                            {saleNotes && (
+                                <div className="hidden print:block text-sm italic border-l-4 pl-2">
+                                    {saleNotes}
+                                </div>
+                            )}
                         </div>
 
-                        <Separator />
-
                         {/* Lista de Produtos - aparece na impressão */}
-                        <div className="space-y-2">
-                            <Label>Itens da Venda</Label>
-                            <div className="rounded-md border bg-slate-50 p-3 text-sm max-h-[200px] overflow-y-auto print:max-h-none print:overflow-visible">
-                                <table className="w-full">
+                        <div className="space-y-2 print:space-y-1">
+                            <Label className="print:text-xs print:font-bold">Itens da Venda</Label>
+                            <div className="rounded-md border bg-muted p-3 text-sm max-h-[200px] overflow-y-auto print:max-h-none print:overflow-visible print:border-none print:p-0">
+                                <table className="w-full text-sm print:text-xs">
                                     <thead>
-                                        <tr className="border-b text-left text-xs text-muted-foreground">
-                                            <th className="pb-2">Produto</th>
-                                            <th className="pb-2 text-center">Qtd</th>
-                                            <th className="pb-2 text-right">Unit.</th>
-                                            <th className="pb-2 text-right">Total</th>
+                                        <tr className="border-b text-left text-xs text-muted-foreground print:text-black">
+                                            <th className="font-medium pb-2">Produto</th>
+                                            <th className="font-medium pb-2 text-center">Qtd</th>
+                                            <th className="font-medium pb-2 text-right">Unit.</th>
+                                            <th className="font-medium pb-2 text-right">Total</th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -591,7 +617,7 @@ export default function SalesPage() {
                                         key={method}
                                         onClick={() => setSelectedPayment(method.toLowerCase())}
                                         className={cn(
-                                            "cursor-pointer rounded-lg border p-3 text-center text-sm font-medium transition-colors hover:bg-slate-50",
+                                            "cursor-pointer rounded-lg border p-3 text-center text-sm font-medium transition-colors hover:bg-accent",
                                             selectedPayment === method.toLowerCase() ? "border-primary bg-primary/10 text-primary" : "border-muted"
                                         )}
                                     >
@@ -627,8 +653,7 @@ export default function SalesPage() {
                                     </Select>
                                 </div>
 
-                                {/* Installment Preview */}
-                                <div className="rounded-md border bg-slate-50 p-3 text-sm">
+                                <div className="rounded-md border bg-muted p-3 text-sm">
                                     <div className="font-semibold mb-2">Detalhamento das Parcelas:</div>
                                     <div className="space-y-1">
                                         {calculateInstallments(getFinalTotal(), paymentCondition).map((inst, idx) => (
@@ -642,10 +667,10 @@ export default function SalesPage() {
                             </div>
                         )}
 
-                        <div className="rounded-lg bg-slate-100 p-4">
+                        <div className="rounded-lg bg-secondary p-4 print:bg-transparent print:border-t-2 print:border-dashed print:rounded-none">
                             <div className="flex justify-between text-lg font-bold">
                                 <span>TOTAL A PAGAR</span>
-                                <span className="text-green-600">{formatCurrency(getFinalTotal())}</span>
+                                <span className="text-emerald-600 print:text-black">{formatCurrency(getFinalTotal())}</span>
                             </div>
                         </div>
                     </div>
@@ -673,12 +698,12 @@ export default function SalesPage() {
             </Dialog>
 
             {/* MAIN UI */}
-            <div className="rounded-t-xl bg-slate-700 p-2 text-white shadow-md">
+            <div className="rounded-t-xl bg-slate-900 p-2 text-white shadow-md no-print">
                 <div className="flex items-center gap-2 mb-2">
                     <Search className="h-5 w-5" />
                     <h2 className="font-bold text-lg">Busca Avançada (F2)</h2>
                 </div>
-                <div className="bg-slate-100 p-3 rounded-lg text-slate-800">
+                <div className="bg-white dark:bg-slate-800 p-3 rounded-lg text-slate-900 dark:text-slate-100">
                     <div className="flex flex-col lg:flex-row gap-3">
                         {/* Search Field */}
                         <div className="relative flex-1">
@@ -790,10 +815,10 @@ export default function SalesPage() {
                 </div>
             </div>
 
-            <div className="flex flex-1 gap-4 overflow-hidden flex-col lg:flex-row">
+            <div className="flex flex-1 gap-4 overflow-hidden flex-col lg:flex-row no-print">
                 {/* List */}
-                <div className="flex-1 flex flex-col border border-slate-300 bg-white rounded-lg shadow-sm overflow-hidden text-slate-800 font-sans">
-                    <div className="bg-slate-200 border-b border-slate-300 grid grid-cols-6 lg:grid-cols-12 gap-1 px-2 py-2 text-xs font-bold text-slate-700 uppercase">
+                <div className="flex-1 flex flex-col border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 rounded-lg shadow-lg overflow-hidden text-slate-900 dark:text-slate-100 font-sans">
+                    <div className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 grid grid-cols-6 lg:grid-cols-12 gap-1 px-3 py-3 text-sm font-bold uppercase text-slate-700 dark:text-slate-300">
                         <div className="col-span-1">Cód</div>
                         <div className="col-span-1 text-center hidden lg:block">Sts</div>
                         <div className="col-span-3 lg:col-span-5">Descrição</div>
@@ -802,44 +827,42 @@ export default function SalesPage() {
                         <div className="col-span-1 text-center hidden lg:block">Est.</div>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto bg-white" ref={listRef}>
+                    <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900" ref={listRef}>
                         {filteredProducts.slice(0, 100).map((product, index) => {
                             const isSelected = selectedProductId === product.id;
                             return (
                                 <div
                                     key={product.id}
                                     onClick={() => setSelectedProductId(product.id)}
-                                    // Remove double click if we rely on F2/Enter mostly, but keeping it for mouse users
                                     onDoubleClick={() => openEditModal(product)}
                                     className={cn(
-                                        "grid grid-cols-6 lg:grid-cols-12 gap-1 px-2 py-1.5 text-xs border-b border-slate-100 cursor-pointer transition-colors items-center select-none",
-                                        index % 2 === 0 ? "bg-slate-50" : "bg-white",
-                                        isSelected ? "bg-[#00BCD4] text-black font-extrabold border-cyan-600" : "hover:bg-blue-50"
+                                        "grid grid-cols-6 lg:grid-cols-12 gap-1 px-3 py-3 text-sm lg:text-base border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors items-center select-none bg-white dark:bg-slate-900",
+                                        isSelected ? "!bg-red-600 text-white font-extrabold border-red-700 active:bg-red-700" : ""
                                     )}
                                 >
                                     <div className="col-span-1">{product.id}</div>
                                     <div className="col-span-1 text-center hidden lg:block"><div className={cn("w-2 h-2 rounded-full mx-auto", product.stock > 0 ? "bg-green-500" : "bg-red-500")} /></div>
                                     <div className="col-span-3 lg:col-span-5 truncate">{product.name}</div>
-                                    <div className="col-span-2 truncate opacity-70 hidden lg:block">{product.category}</div>
+                                    <div className={cn("col-span-2 truncate hidden lg:block", isSelected ? "opacity-100" : "opacity-70")}>{product.category}</div>
                                     <div className="col-span-1 text-right font-mono">{formatCurrency(product.price)}</div>
                                     <div className="col-span-1 text-center hidden lg:block">{product.stock}</div>
                                 </div>
                             )
                         })}
                     </div>
-                    <div className="bg-slate-100 p-1 text-xs text-center text-slate-500 border-t">
+                    <div className="bg-slate-100 dark:bg-slate-800 p-1 text-xs text-center text-slate-500 dark:text-slate-400 border-t no-print">
                         Use as setas ↑ ↓ para navegar e ENTER para selecionar
                     </div>
                 </div>
 
                 {/* Cart - Hidden on mobile, shown on desktop */}
-                <div className="hidden lg:flex w-96 flex-col border border-slate-300 bg-slate-50 rounded-lg shadow-sm">
-                    <div className="p-3 bg-slate-800 text-white font-bold flex justify-between rounded-t-lg">
+                <div className="hidden lg:flex w-80 flex-col border border-border bg-muted/30 rounded-lg shadow-sm">
+                    <div className="p-3 bg-slate-950 text-white font-bold flex justify-between rounded-t-lg">
                         <span>CUPOM FISCAL</span>
                         <span>{cart.length.toString().padStart(2, '0')} ITENS</span>
                     </div>
 
-                    <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-slate-50 max-h-[400px]">
+                    <div className="flex-1 overflow-y-auto p-2 space-y-2 bg-muted/50 max-h-[400px]">
                         {cart.map((item, idx) => {
                             let finalP = item.price;
                             if (item.discount > 0) {
@@ -848,11 +871,11 @@ export default function SalesPage() {
                             }
                             const total = finalP * item.quantity;
                             return (
-                                <div key={idx} onClick={() => openEditModal(item, idx)} className="bg-white border border-slate-200 p-2 rounded shadow-sm text-sm hover:border-cyan-400 cursor-pointer relative group">
-                                    <div className="font-bold text-slate-800 truncate pr-6">{item.name}</div>
-                                    <div className="flex justify-between items-center mt-1 text-xs text-slate-600">
+                                <div key={idx} onClick={() => openEditModal(item, idx)} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-700 p-2 rounded shadow-sm text-sm hover:border-primary cursor-pointer relative group">
+                                    <div className="font-bold truncate pr-6">{item.name}</div>
+                                    <div className="flex justify-between items-center mt-1 text-xs text-slate-500 dark:text-slate-400">
                                         <div>{item.quantity} x {formatCurrency(item.price)}</div>
-                                        <div className="font-bold text-lg text-slate-900">{formatCurrency(total)}</div>
+                                        <div className="font-bold text-lg text-slate-900 dark:text-slate-100">{formatCurrency(total)}</div>
                                     </div>
                                     <button onClick={(e) => { e.stopPropagation(); removeFromCart(idx); }} className="absolute top-1 right-1 text-slate-300 hover:text-red-500"><X className="h-4 w-4" /></button>
                                 </div>
@@ -904,12 +927,12 @@ export default function SalesPage() {
             <Dialog open={isCartOpen} onOpenChange={setIsCartOpen}>
                 <DialogContent className="max-w-[95vw] max-h-[90vh] p-0 overflow-hidden">
                     <div className="flex flex-col h-full max-h-[85vh]">
-                        <div className="p-3 bg-slate-800 text-white font-bold flex justify-between">
+                        <div className="p-3 bg-primary text-primary-foreground font-bold flex justify-between">
                             <span>🛒 CUPOM FISCAL</span>
                             <span>{cart.length.toString().padStart(2, '0')} ITENS</span>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50">
+                        <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-muted/50">
                             {cart.map((item, idx) => {
                                 let finalP = item.price;
                                 if (item.discount > 0) {
@@ -933,7 +956,7 @@ export default function SalesPage() {
                             )}
                         </div>
 
-                        <div className="bg-white border-t p-4 space-y-3">
+                        <div className="bg-white dark:bg-slate-900 border-t p-4 space-y-3">
                             <div className="flex justify-between text-sm text-slate-500">
                                 <span>Subtotal</span>
                                 <span>{formatCurrency(subTotal)}</span>

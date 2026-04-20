@@ -2,7 +2,7 @@
     "name": "Paulista PDV",
     "short_name": "PDV",
     "description": "Sistema de Gestão Integrado - Ponto de Venda",
-    "start_url": "/dashboard/sales",
+    "start_url": "/paulistaPDV/dashboard/sales",
     "display": "standalone",
     "background_color": "#1e40af",
     "theme_color": "#1e40af",

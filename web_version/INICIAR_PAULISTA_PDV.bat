@@ -151,19 +151,19 @@ set "BROWSER_CMD="
 :: Verificar Chrome
 where chrome >nul 2>&1
 if %ERRORLEVEL% EQU 0 (
-    set "BROWSER_CMD=chrome --app=http://localhost:3000/dashboard/sales"
+    set "BROWSER_CMD=chrome --app=http://localhost:3000/paulistaPDV/dashboard/sales"
     set "BROWSER_FOUND=1"
     echo        [OK] Chrome detectado
 ) else (
     :: Verificar Edge
     where msedge >nul 2>&1
     if !ERRORLEVEL! EQU 0 (
-        set "BROWSER_CMD=msedge --app=http://localhost:3000/dashboard/sales"
+        set "BROWSER_CMD=msedge --app=http://localhost:3000/paulistaPDV/dashboard/sales"
         set "BROWSER_FOUND=1"
         echo        [OK] Edge detectado
     ) else (
         :: Usar navegador padrao
-        set "BROWSER_CMD=start http://localhost:3000/dashboard/sales"
+        set "BROWSER_CMD=start http://localhost:3000/paulistaPDV/dashboard/sales"
         echo        [OK] Navegador padrao sera usado
     )
 )

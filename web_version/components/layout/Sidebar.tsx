@@ -58,7 +58,7 @@ export function Sidebar() {
             {/* Sidebar */}
             <div
                 className={cn(
-                    "fixed lg:relative z-50 h-screen flex-col border-r bg-card/95 backdrop-blur-xl transition-all duration-300",
+                    "fixed lg:relative z-50 h-screen flex-col border-r bg-card/95 backdrop-blur-xl transition-all duration-300 no-print",
                     // Mobile: slide in from left
                     isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
                     // Desktop: collapsed or expanded

@@ -1,0 +1,25 @@
+========================================= 
+Paulista PDV - Inicio: 20/04/2026  8:48:47,94 
+========================================= 
+ 
+[OK] Pasta: C:\Users\Terminal\Documents\PAULISTA MOBILE PDV\web_version\ 
+[OK] Node.js v20.11.0 
+[INFO] Instalando dependencias 
+
+up to date, audited 407 packages in 8s
+
+143 packages are looking for funding
+  run `npm fund` for details
+
+7 vulnerabilities (2 moderate, 5 high)
+
+To address issues that do not require attention, run:
+  npm audit fix
+
+To address all issues possible, run:
+  npm audit fix --force
+
+Some issues need review, and may require choosing
+a different dependency.
+
+Run `npm audit` for details.
