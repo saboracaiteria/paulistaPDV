@@ -40,67 +40,37 @@
   --primary-foreground: #000000;
 
   /* Slate/Gray for backgrounds - High Contrast Light */
-  --background: #f8fafc;
-  --foreground: #020617; /* Very Dark Slate */
+  --background: #020617;
+  --foreground: #f8fafc;
 
   /* Surface colors */
-  --card: #ffffff;
-  --card-foreground: #020617;
-  --popover: #ffffff;
-  --popover-foreground: #020617;
+  --card: #0f172a;
+  --card-foreground: #f8fafc;
+  --popover: #0f172a;
+  --popover-foreground: #f8fafc;
 
   /* Muted elements */
-  --secondary: #e2e8f0;
-  /* Slate-200 */
-  --secondary-foreground: #1e293b;
-  /* Slate-800 */
-  --muted: #f8fafc;
-  /* Slate-50 */
-  --muted-foreground: #64748b;
-  /* Slate-500 */
-  --accent: #e0f2fe;
-  /* Light Blue for hovers */
-  --accent-foreground: #0f172a;
+  --secondary: #334155;
+  --secondary-foreground: #f8fafc;
+  --muted: #0f172a;
+  --muted-foreground: #94a3b8;
+  --accent: #1e293b;
+  --accent-foreground: #f8fafc;
 
   /* Semantic colors */
   --destructive: #ef4444;
   --destructive-foreground: #ffffff;
-  --border: #cbd5e1;
-  /* Slate-300 */
-  --input: #cbd5e1;
-  --ring: #00BCD4;
+  --border: #1e293b;
+  --input: #1e293b;
+  --ring: #22d3ee;
+  --primary: #22d3ee;
   /* Focus matches primary */
 
   --radius: 0.3rem;
   /* Sharper corners for enterprise look */
 }
 
-/* Dark mode overrides (optional if user wants hybrid, but usually legacy apps are light) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #020617; /* Deepest Dark */
-    --foreground: #f8fafc; /* Near White */
-    --card: #0f172a; /* Slate-900 */
-    --card-foreground: #f8fafc;
-    --popover: #0f172a;
-    --popover-foreground: #f8fafc;
-    --primary: #22d3ee;
-    /* Lighter Cyan */
-    --primary-foreground: #000000;
-    --secondary: #334155;
-    /* Slate-700 */
-    --secondary-foreground: #f8fafc;
-    --muted: #0f172a;
-    --muted-foreground: #94a3b8;
-    --accent: #1e293b;
-    --accent-foreground: #f8fafc;
-    --destructive: #ef4444;
-    --destructive-foreground: #ffffff;
-    --border: #1e293b;
-    --input: #1e293b;
-    --ring: #22d3ee;
-  }
-}
+/* Legacy support removed - Dark is now default */
 
 body {
   background-color: var(--background);

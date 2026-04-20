@@ -23,7 +23,7 @@ export const viewport = {
 export const metadata: Metadata = {
   title: "Paulista PDV",
   description: "Sistema de Gestão Integrado",
-  manifest: "/paulistaPDV/manifest.json",
+  manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -39,8 +39,8 @@ export default function RootLayout({
   return (
     <html lang="pt-BR">
       <head>
-        <link rel="icon" href="/paulistaPDV/icon-192.png" />
-        <link rel="apple-touch-icon" href="/paulistaPDV/icon-192.png" />
+        <link rel="icon" href="/icon-192.png" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
       <body
