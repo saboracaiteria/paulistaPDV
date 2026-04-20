@@ -18,7 +18,7 @@ export default function LoginPage() {
 
     setTimeout(() => {
       setIsLoading(false);
-      router.push("/dashboard");
+      router.push("/dashboard/sales");
     }, 1500);
   }
 

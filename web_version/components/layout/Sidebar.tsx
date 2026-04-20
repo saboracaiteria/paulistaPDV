@@ -26,8 +26,8 @@ import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/contexts/SidebarContext";
 
 const sidebarItems = [
-    { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
     { icon: ShoppingCart, label: "Vendas", href: "/dashboard/sales" },
+    { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
     { icon: History, label: "Histórico", href: "/dashboard/sales/history" },
     { icon: Package, label: "Produtos", href: "/dashboard/products" },
     { icon: Users, label: "Clientes", href: "/dashboard/customers" },

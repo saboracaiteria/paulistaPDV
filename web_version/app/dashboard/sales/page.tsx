@@ -442,7 +442,7 @@ export default function SalesPage() {
             {/* EDIT ITEM MODAL */}
             <Dialog open={isEditModalOpen} onOpenChange={setIsEditModalOpen}>
                 <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader><DialogTitle>Detalhes do Item</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle className="text-wrap-balance">Detalhes do Item</DialogTitle></DialogHeader>
                     <div className="grid gap-4 py-4">
                         <div className="grid grid-cols-4 items-center gap-4">
                             <Label className="text-right">Produto</Label>
@@ -456,7 +456,7 @@ export default function SalesPage() {
                                 value={editingItem.price}
                                 onChange={(e) => setEditingItem({ ...editingItem, price: Number(e.target.value) })}
                                 onKeyDown={(e) => handleEnterKey(e, editQuantityRef)}
-                                className="col-span-3"
+                                className="col-span-3 tabular-nums"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -467,7 +467,7 @@ export default function SalesPage() {
                                 value={editingItem.quantity}
                                 onChange={(e) => setEditingItem({ ...editingItem, quantity: Number(e.target.value) })}
                                 onKeyDown={(e) => handleEnterKey(e, editDiscountRef)}
-                                className="col-span-3 bg-cyan-50 dark:bg-cyan-100 border-cyan-300 focus:border-cyan-500 focus:ring-cyan-500 text-lg font-bold text-slate-900"
+                                className="col-span-3 bg-cyan-50 dark:bg-cyan-100 border-cyan-300 focus:border-cyan-500 focus:ring-cyan-500 text-lg font-bold text-slate-900 tabular-nums"
                             />
                         </div>
                         <div className="grid grid-cols-4 items-center gap-4">
@@ -479,7 +479,7 @@ export default function SalesPage() {
                                     value={editingItem.discount}
                                     onChange={(e) => setEditingItem({ ...editingItem, discount: Number(e.target.value) })}
                                     onKeyDown={(e) => handleEnterKey(e, handleSaveItem)}
-                                    className="bg-amber-50 dark:bg-amber-100 border-amber-300 focus:border-amber-500 focus:ring-amber-500 text-slate-900"
+                                    className="bg-amber-50 dark:bg-amber-100 border-amber-300 focus:border-amber-500 focus:ring-amber-500 text-slate-900 tabular-nums"
                                 />
                                 <select className="border rounded p-1 bg-amber-50 dark:bg-amber-100 border-amber-300 text-slate-900" value={editingItem.discountType} onChange={(e) => setEditingItem({ ...editingItem, discountType: e.target.value as "value" | "percent" })}>
                                     <option value="value">R$</option>
@@ -490,7 +490,7 @@ export default function SalesPage() {
                     </div>
                     <DialogFooter>
                         <Button variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancelar</Button>
-                        <Button ref={editConfirmRef} onClick={handleSaveItem}>Confirmar</Button>
+                        <Button ref={editConfirmRef} onClick={handleSaveItem} variant="premium">Confirmar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -499,7 +499,7 @@ export default function SalesPage() {
             <Dialog open={isCheckoutOpen} onOpenChange={setIsCheckoutOpen}>
                 <DialogContent className="sm:max-w-[600px]">
                     <DialogHeader className="no-print">
-                        <DialogTitle>Finalizar Venda</DialogTitle>
+                        <DialogTitle className="text-wrap-balance">Finalizar Venda</DialogTitle>
                         <DialogDescription>Selecione a forma de pagamento e finalize.</DialogDescription>
                     </DialogHeader>
 
@@ -591,9 +591,9 @@ export default function SalesPage() {
                                         {cart.map((item, idx) => (
                                             <tr key={idx} className="border-b last:border-0">
                                                 <td className="py-1.5">{item.name}</td>
-                                                <td className="py-1.5 text-center">{item.quantity}</td>
-                                                <td className="py-1.5 text-right">{formatCurrency(item.price)}</td>
-                                                <td className="py-1.5 text-right font-medium">{formatCurrency(item.price * item.quantity)}</td>
+                                                <td className="py-1.5 tabular-nums text-center">{item.quantity}</td>
+                                                <td className="py-1.5 text-right tabular-nums">{formatCurrency(item.price)}</td>
+                                                <td className="py-1.5 text-right font-medium tabular-nums">{formatCurrency(item.price * item.quantity)}</td>
                                             </tr>
                                         ))}
                                     </tbody>
@@ -601,7 +601,7 @@ export default function SalesPage() {
                                 {globalDiscount.value > 0 ? (
                                     <div className="flex justify-between mt-2 pt-2 border-t text-sm">
                                         <span>Desconto:</span>
-                                        <span className="text-red-600">- {formatCurrency(globalDiscount.value)}</span>
+                                        <span className="text-red-500 tabular-nums">- {formatCurrency(globalDiscount.value)}</span>
                                     </div>
                                 ) : null}
                             </div>
@@ -670,7 +670,7 @@ export default function SalesPage() {
                         <div className="rounded-lg bg-secondary p-4 print:bg-transparent print:border-t-2 print:border-dashed print:rounded-none">
                             <div className="flex justify-between text-lg font-bold">
                                 <span>TOTAL A PAGAR</span>
-                                <span className="text-emerald-600 print:text-black">{formatCurrency(getFinalTotal())}</span>
+                                <span className="text-emerald-500 tabular-nums print:text-black">{formatCurrency(getFinalTotal())}</span>
                             </div>
                         </div>
                     </div>
@@ -688,7 +688,7 @@ export default function SalesPage() {
                         </div>
                         <div className="flex gap-2">
                             <Button variant="ghost" onClick={() => setIsCheckoutOpen(false)}>Voltar</Button>
-                            <Button ref={checkoutPrintRef} className="gap-2 min-w-[140px]" onClick={handlePrint}>
+                            <Button ref={checkoutPrintRef} variant="premium" className="gap-2 min-w-[140px]" onClick={handlePrint}>
                                 <Printer className="h-4 w-4" />
                                 Imprimir e Finalizar
                             </Button>

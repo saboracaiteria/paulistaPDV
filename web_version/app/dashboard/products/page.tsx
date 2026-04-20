@@ -210,7 +210,7 @@ export default function ProductsPage() {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Produtos</h1>
+                    <h1 className="text-3xl font-bold tracking-tight text-wrap-balance">Produtos</h1>
                     <p className="text-muted-foreground">
                         Gerencie seu catálogo, preços e estoque (Modo Estático).
                     </p>
@@ -241,13 +241,13 @@ export default function ProductsPage() {
                         <div className="relative w-full">
                             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                             <Input
-                                placeholder="Buscar produtos..."
+                                placeholder="Buscar produtos…"
                                 value={searchTerm}
                                 onChange={(e) => { setSearchTerm(e.target.value); setCurrentPage(1); }}
                                 className="pl-9"
                             />
                         </div>
-                        <Button variant="outline" size="icon">
+                        <Button variant="outline" size="icon" aria-label="Filtrar produtos">
                             <Filter className="h-4 w-4 text-muted-foreground" />
                         </Button>
                     </div>
@@ -269,14 +269,14 @@ export default function ProductsPage() {
                         <tbody className="[&_tr:last-child]:border-0">
                             {currentProducts.map((product) => (
                                 <tr key={product.id} className="border-b transition-colors hover:bg-muted/50">
-                                    <td className="p-4 align-middle font-medium">#{product.id}</td>
+                                    <td className="p-4 align-middle font-medium tabular-nums text-muted-foreground">#{product.id}</td>
                                     <td className="p-4 align-middle font-medium">{product.name}</td>
                                     <td className="p-4 align-middle">
                                         <span className="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground">
                                             {product.category}
                                         </span>
                                     </td>
-                                    <td className="p-4 align-middle">{formatCurrency(product.price)}</td>
+                                    <td className="p-4 align-middle tabular-nums">{formatCurrency(product.price)}</td>
                                     <td className="p-4 align-middle">{product.stock} un</td>
                                     <td className="p-4 align-middle">
                                         <span className={`inline-flex items-center text-xs font-medium ${product.status === "Ativo" ? "text-emerald-500" :
@@ -287,10 +287,10 @@ export default function ProductsPage() {
                                     </td>
                                     <td className="p-4 align-middle">
                                         <div className="flex items-center gap-2">
-                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(product)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => handleOpenDialog(product)} aria-label="Editar produto">
                                                 <Edit className="h-4 w-4" />
                                             </Button>
-                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(product.id)}>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => handleDelete(product.id)} aria-label="Excluir produto">
                                                 <Trash2 className="h-4 w-4" />
                                             </Button>
                                         </div>

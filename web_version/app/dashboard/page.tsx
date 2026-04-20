@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useLayoutEffect } from "react";
+import { useRouter } from "next/navigation";
 import { DollarSign, ShoppingCart, Users, Activity, TrendingUp, Loader2, AlertTriangle, Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,12 @@ interface MonthlyData {
 }
 
 export default function DashboardPage() {
+    const router = useRouter();
+
+    useLayoutEffect(() => {
+        router.push("/dashboard/sales");
+    }, [router]);
+
     const [stats, setStats] = useState<DashboardStats>({
         totalSales: 0,
         salesCount: 0,
@@ -194,7 +201,7 @@ export default function DashboardPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-wrap-balance">Dashboard</h1>
                 <p className="text-muted-foreground">
                     Visão geral da sua loja e performance de vendas.
                 </p>
@@ -219,8 +226,8 @@ export default function DashboardPage() {
                             </div>
                         </div>
                         <div className="space-y-1">
-                            <div className="text-2xl font-bold">{stat.value}</div>
-                            <p className="text-xs text-muted-foreground">
+                            <div className="text-2xl font-bold tabular-nums">{stat.value}</div>
+                            <p className="text-xs text-muted-foreground tabular-nums">
                                 {stat.change}
                                 {index === 3 && stats.lowStockCount > 0 && " (clique para ver)"}
                             </p>
@@ -244,10 +251,11 @@ export default function DashboardPage() {
                             return (
                                 <div
                                     key={i}
-                                    className="group relative w-full bg-secondary/30 rounded-t-sm hover:bg-primary/50 transition-colors cursor-pointer"
+                                    className="group relative w-full bg-primary/20 rounded-t-sm hover:bg-primary/50 transition-colors cursor-pointer overflow-hidden"
                                     style={{ height: `${Math.max(height, 5)}%` }}
                                 >
-                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border shadow-sm z-10">
+                                    <div className="absolute inset-0 bg-gradient-to-t from-primary/40 to-transparent" />
+                                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-popover text-popover-foreground text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border shadow-sm z-10 tabular-nums">
                                         {formatCurrency(m.total)}
                                     </div>
                                 </div>
@@ -280,7 +288,7 @@ export default function DashboardPage() {
                                             {new Date(sale.created_at).toLocaleDateString('pt-BR')}
                                         </p>
                                     </div>
-                                    <div className="font-medium text-emerald-600">
+                                    <div className="font-medium text-emerald-500 tabular-nums">
                                         + {formatCurrency(sale.total)}
                                     </div>
                                 </div>

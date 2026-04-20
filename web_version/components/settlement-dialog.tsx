@@ -74,7 +74,7 @@ export function SettlementDialog({ isOpen, onClose, onConfirm, selectedItems }: 
         <Dialog open={isOpen} onOpenChange={onClose}>
             <DialogContent className="max-w-3xl">
                 <DialogHeader>
-                    <DialogTitle>Baixar Contas Selecionadas</DialogTitle>
+                    <DialogTitle className="text-wrap-balance">Baixar Contas Selecionadas</DialogTitle>
                 </DialogHeader>
 
                 <div className="py-4 space-y-4">
@@ -95,16 +95,16 @@ export function SettlementDialog({ isOpen, onClose, onConfirm, selectedItems }: 
                                     return (
                                         <tr key={item.id} className="border-b">
                                             <td className="p-2">{item.description} <br /> <span className="text-xs text-muted-foreground">{item.customer}</span></td>
-                                            <td className="p-2 text-right">R$ {orig.toFixed(2)}</td>
+                                            <td className="p-2 tabular-nums">R$ {orig.toFixed(2)}</td>
                                             <td className="p-2 text-right">
                                                 <Input
                                                     type="number"
-                                                    className="w-20 ml-auto h-8 text-right"
+                                                    className="w-20 ml-auto h-8 text-right tabular-nums"
                                                     value={disc}
                                                     onChange={(e) => handleDiscountChange(item.id, Number(e.target.value))}
                                                 />
                                             </td>
-                                            <td className="p-2 text-right font-medium">R$ {(orig - disc).toFixed(2)}</td>
+                                            <td className="p-2 text-right font-medium tabular-nums">R$ {(orig - disc).toFixed(2)}</td>
                                         </tr>
                                     );
                                 })}
@@ -139,7 +139,7 @@ export function SettlementDialog({ isOpen, onClose, onConfirm, selectedItems }: 
                             </div>
                             <div className="flex justify-between items-center text-lg font-bold">
                                 <span>Total a Pagar:</span>
-                                <span>R$ {totalFinal.toFixed(2)}</span>
+                                <span className="tabular-nums text-primary">R$ {totalFinal.toFixed(2)}</span>
                             </div>
                         </div>
                     </div>
@@ -147,7 +147,7 @@ export function SettlementDialog({ isOpen, onClose, onConfirm, selectedItems }: 
 
                 <DialogFooter>
                     <Button variant="outline" onClick={onClose}>Cancelar</Button>
-                    <Button onClick={handleConfirm} className="bg-emerald-600 hover:bg-emerald-700">Confirmar Baixa</Button>
+                    <Button onClick={handleConfirm} variant="premium">Confirmar Baixa</Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: Arial, Helvetica, sans-serif;
+  --font-sans: "Geist Var", "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -34,52 +34,61 @@
 
 :root {
   color-scheme: dark;
-  /* Paulista PDV Theme - Legacy Enterprise Style */
+  /* Paulista PDV Theme - Vercel Inspired Premium Dark */
 
-  /* Cyan Highligh (#00BCD4) as Primary */
-  --primary: #00BCD4;
+  /* Vibrant Cyan (#00E5FF) for high-end digital feel */
+  --primary: #00E5FF;
   --primary-foreground: #000000;
 
-  /* Slate/Gray for backgrounds - High Contrast Light */
+  /* Deep Slate for high-quality dark experience */
   --background: #020617;
   --foreground: #f8fafc;
 
-  /* Surface colors */
+  /* Surface colors with subtle separation */
   --card: #0f172a;
   --card-foreground: #f8fafc;
   --popover: #0f172a;
   --popover-foreground: #f8fafc;
 
-  /* Muted elements */
-  --secondary: #334155;
+  /* Muted elements with better hierarchy */
+  --secondary: #1e293b;
   --secondary-foreground: #f8fafc;
   --muted: #0f172a;
-  --muted-foreground: #94a3b8;
+  --muted-foreground: #64748b;
   --accent: #1e293b;
   --accent-foreground: #f8fafc;
 
   /* Semantic colors */
-  --destructive: #ef4444;
+  --destructive: #f43f5e;
   --destructive-foreground: #ffffff;
   --border: #1e293b;
   --input: #1e293b;
-  --ring: #22d3ee;
-  --primary: #22d3ee;
-  /* Focus matches primary */
+  --ring: #00E5FF;
 
-  --radius: 0.3rem;
-  /* Sharper corners for enterprise look */
+  --radius: 0.5rem;
+  /* Slightly softer corners for premium feel */
 }
-
-/* Legacy support removed - Dark is now default */
 
 body {
   background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
-/* Print Styles */
+/* Tabular numbers for financial data columns - CRITICAL for PDV */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Premium smooth transitions */
+.transition-premium {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Print Styles - Optimized for clarity */
 @media print {
   .no-print,
   [role="dialog"] > div:first-child {
@@ -91,6 +100,7 @@ body {
     color: black !important;
     margin: 0;
     padding: 0;
+    font-family: sans-serif;
   }
 
   /* Force solid backgrounds and hide UI noise */
@@ -112,11 +122,6 @@ body {
     width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
-  }
-
-  /* Specific fix for transparency in modal */
-  div[ref] {
-    background-color: white !important;
   }
 
   * {
