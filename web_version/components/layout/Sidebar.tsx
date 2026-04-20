@@ -58,7 +58,7 @@ export function Sidebar() {
             {/* Sidebar */}
             <div
                 className={cn(
-                    "fixed lg:relative z-50 h-screen flex-col border-r bg-card/95 backdrop-blur-xl transition-all duration-300 no-print",
+                    "fixed lg:relative z-50 h-screen flex-col border-r bg-card/95 backdrop-blur-xl transition-[width,transform] duration-300 no-print",
                     // Mobile: slide in from left
                     isMobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0",
                     // Desktop: collapsed or expanded
@@ -72,7 +72,7 @@ export function Sidebar() {
                         <div className="h-8 w-8 rounded-lg bg-cyan-500 flex items-center justify-center text-black font-extrabold shrink-0">
                             P
                         </div>
-                        {!isCollapsed && <span className="hidden lg:inline">Paulista PDV</span>}
+                        {!isCollapsed ? <span className="hidden lg:inline">Paulista PDV</span> : null}
                         <span className="lg:hidden">Paulista PDV</span>
                     </div>
                     {/* Mobile close button */}
@@ -101,7 +101,7 @@ export function Sidebar() {
                                     title={isCollapsed ? item.label : undefined}
                                 >
                                     <item.icon className={cn("h-4 w-4 shrink-0", isActive ? "text-primary" : "text-muted-foreground")} />
-                                    {!isCollapsed && <span className="hidden lg:inline">{item.label}</span>}
+                                    {!isCollapsed ? <span className="hidden lg:inline">{item.label}</span> : null}
                                     <span className="lg:hidden">{item.label}</span>
                                 </Link>
                             );

@@ -563,7 +563,7 @@ export default function SalesPage() {
                             <Label className="no-print">Observações (Opcional)</Label>
                             <textarea
                                 className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 no-print"
-                                placeholder="Observações sobre a venda ou entrega..."
+                                placeholder="Observações sobre a venda ou entrega…"
                                 value={saleNotes}
                                 onChange={(e) => setSaleNotes(e.target.value)}
                             />
@@ -598,12 +598,12 @@ export default function SalesPage() {
                                         ))}
                                     </tbody>
                                 </table>
-                                {globalDiscount.value > 0 && (
+                                {globalDiscount.value > 0 ? (
                                     <div className="flex justify-between mt-2 pt-2 border-t text-sm">
                                         <span>Desconto:</span>
                                         <span className="text-red-600">- {formatCurrency(globalDiscount.value)}</span>
                                     </div>
-                                )}
+                                ) : null}
                             </div>
                         </div>
 
@@ -715,10 +715,10 @@ export default function SalesPage() {
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full border border-slate-400 rounded px-2 py-1 h-10 text-xl uppercase focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none font-bold text-slate-700"
                                 autoFocus
-                                placeholder="DIGITE O NOME OU CÓDIGO..."
+                                placeholder="DIGITE O NOME OU CÓDIGO…"
                                 autoComplete="off"
                             />
-                            <Search className="absolute right-3 bottom-2 h-6 w-6 text-slate-400" />
+                            <Search className="absolute right-3 bottom-2 h-6 w-6 text-slate-400" aria-hidden="true" />
                         </div>
 
                         {/* Quick Entry Fields */}
@@ -836,7 +836,7 @@ export default function SalesPage() {
                                     onClick={() => setSelectedProductId(product.id)}
                                     onDoubleClick={() => openEditModal(product)}
                                     className={cn(
-                                        "grid grid-cols-6 lg:grid-cols-12 gap-1 px-3 py-3 text-sm lg:text-base border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-colors items-center select-none bg-white dark:bg-slate-900",
+                                        "grid grid-cols-6 lg:grid-cols-12 gap-1 px-3 py-3 text-sm lg:text-base border-b border-slate-100 dark:border-slate-800 cursor-pointer transition-[background-color,color] duration-200 items-center select-none bg-white dark:bg-slate-900",
                                         isSelected ? "!bg-red-600 text-white font-extrabold border-red-700 active:bg-red-700" : ""
                                     )}
                                 >
@@ -844,7 +844,7 @@ export default function SalesPage() {
                                     <div className="col-span-1 text-center hidden lg:block"><div className={cn("w-2 h-2 rounded-full mx-auto", product.stock > 0 ? "bg-green-500" : "bg-red-500")} /></div>
                                     <div className="col-span-3 lg:col-span-5 truncate">{product.name}</div>
                                     <div className={cn("col-span-2 truncate hidden lg:block", isSelected ? "opacity-100" : "opacity-70")}>{product.category}</div>
-                                    <div className="col-span-1 text-right font-mono">{formatCurrency(product.price)}</div>
+                                    <div className="col-span-1 text-right tabular-nums">{formatCurrency(product.price)}</div>
                                     <div className="col-span-1 text-center hidden lg:block">{product.stock}</div>
                                 </div>
                             )
@@ -875,9 +875,9 @@ export default function SalesPage() {
                                     <div className="font-bold truncate pr-6">{item.name}</div>
                                     <div className="flex justify-between items-center mt-1 text-xs text-slate-500 dark:text-slate-400">
                                         <div>{item.quantity} x {formatCurrency(item.price)}</div>
-                                        <div className="font-bold text-lg text-slate-900 dark:text-slate-100">{formatCurrency(total)}</div>
+                                        <div className="font-bold text-lg text-slate-900 dark:text-slate-100 tabular-nums">{formatCurrency(total)}</div>
                                     </div>
-                                    <button onClick={(e) => { e.stopPropagation(); removeFromCart(idx); }} className="absolute top-1 right-1 text-slate-300 hover:text-red-500"><X className="h-4 w-4" /></button>
+                                    <button onClick={(e) => { e.stopPropagation(); removeFromCart(idx); }} className="absolute top-1 right-1 text-slate-300 hover:text-red-500" aria-label="Remover do carrinho"><X className="h-4 w-4" /></button>
                                 </div>
                             )
                         })}
@@ -900,7 +900,7 @@ export default function SalesPage() {
                         <div className="border-t pt-2 mt-2">
                             <div className="flex justify-between items-end">
                                 <span className="text-xl font-bold text-slate-800">TOTAL</span>
-                                <span className="text-3xl font-extrabold text-blue-600">{formatCurrency(getFinalTotal())}</span>
+                                <span className="text-3xl font-extrabold text-blue-600 tabular-nums">{formatCurrency(getFinalTotal())}</span>
                             </div>
                         </div>
                         <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-12 text-lg shadow-lg" onClick={handleOpenCheckout}>
@@ -913,14 +913,15 @@ export default function SalesPage() {
             {/* Mobile Floating Cart Button */}
             <button
                 onClick={() => setIsCartOpen(true)}
+                aria-label="Ver carrinho"
                 className="lg:hidden fixed bottom-6 right-6 z-50 bg-green-600 hover:bg-green-700 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-2xl animate-pulse"
             >
-                <ShoppingCart className="h-7 w-7" />
-                {cart.length > 0 && (
+                <ShoppingCart className="h-7 w-7" aria-hidden="true" />
+                {cart.length > 0 ? (
                     <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
                         {cart.length}
                     </span>
-                )}
+                ) : null}
             </button>
 
             {/* Mobile Cart Modal */}
@@ -945,9 +946,9 @@ export default function SalesPage() {
                                         <div className="font-bold text-slate-800 truncate pr-8 text-sm">{item.name}</div>
                                         <div className="flex justify-between items-center mt-2">
                                             <div className="text-xs text-slate-500">{item.quantity} x {formatCurrency(item.price)}</div>
-                                            <div className="font-bold text-lg text-slate-900">{formatCurrency(total)}</div>
+                                            <div className="font-bold text-lg text-slate-900 tabular-nums">{formatCurrency(total)}</div>
                                         </div>
-                                        <button onClick={(e) => { e.stopPropagation(); removeFromCart(idx); }} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 p-1"><X className="h-5 w-5" /></button>
+                                        <button onClick={(e) => { e.stopPropagation(); removeFromCart(idx); }} className="absolute top-2 right-2 text-slate-400 hover:text-red-500 p-1" aria-label="Remover do carrinho"><X className="h-5 w-5" /></button>
                                     </div>
                                 )
                             })}
@@ -959,7 +960,7 @@ export default function SalesPage() {
                         <div className="bg-white dark:bg-slate-900 border-t p-4 space-y-3">
                             <div className="flex justify-between text-sm text-slate-500">
                                 <span>Subtotal</span>
-                                <span>{formatCurrency(subTotal)}</span>
+                                <span className="tabular-nums">{formatCurrency(subTotal)}</span>
                             </div>
                             <div className="flex justify-between items-center gap-2">
                                 <span className="text-xs font-bold text-slate-700">DESCONTO:</span>
@@ -970,7 +971,7 @@ export default function SalesPage() {
                             <div className="border-t pt-3 mt-2">
                                 <div className="flex justify-between items-end">
                                     <span className="text-2xl font-bold text-slate-800">TOTAL</span>
-                                    <span className="text-4xl font-extrabold text-green-600">{formatCurrency(getFinalTotal())}</span>
+                                    <span className="text-4xl font-extrabold text-green-600 tabular-nums">{formatCurrency(getFinalTotal())}</span>
                                 </div>
                             </div>
                             <Button className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-14 text-xl shadow-lg" onClick={() => { setIsCartOpen(false); handleOpenCheckout(); }}>
